@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec pnpm exec expo start --web --port "$PORT"

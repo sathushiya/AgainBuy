@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "AgainBuy",
+    "slug": "againbuy",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FAF3E8"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.againbuy.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FAF3E8"
+      },
+      "package": "com.againbuy.mobile",
+      "edgeToEdgeEnabled": true
+    }
+  }
+}

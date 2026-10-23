@@ -1,0 +1,10 @@
+{
+  "description": "AgainBuy is a warm second-hand marketplace for buying, selling and giving good things a second life.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
