@@ -7,6 +7,8 @@ import { useApiData } from "../../hooks/useApiData";
 import { api } from "../../services/api";
 import { colors, spacing, typography } from "../../theme";
 
+const CONDITIONS = ["Any condition", "Like new", "Excellent", "Good", "Fair"];
+
 export function ExploreScreen({ navigation, route }: { navigation: any; route: any }) {
   const { wishlist, toggleWishlist } = useApp();
   const [query, setQuery] = React.useState("");
@@ -14,8 +16,9 @@ export function ExploreScreen({ navigation, route }: { navigation: any; route: a
   const [category, setCategory] = React.useState(route.params?.category ?? "All");
   const [condition, setCondition] = React.useState("Any condition");
 
-  // Categories tapped on Home arrive as a route param.
-  React.useEffect(() => { if (route.params?.category) setCategory(route.params.category); }, [route.params?.category]);
+  // Home sends the category to show ("All" for View all). Re-apply it on every
+  // navigation, even if the value is unchanged, since this tab keeps its state.
+  React.useEffect(() => { if (route.params?.category) setCategory(route.params.category); }, [route.params]);
 
   // Wait for a pause in typing before asking the server.
   React.useEffect(() => {
@@ -29,9 +32,10 @@ export function ExploreScreen({ navigation, route }: { navigation: any; route: a
     [search, category, condition],
   );
   const products = data?.items ?? [];
-  const toggleCondition = () => setCondition((value) => value === "Any condition" ? "Excellent" : "Any condition");
+  // Each tap moves to the next condition, then wraps back to "Any condition".
+  const toggleCondition = () => setCondition((value) => CONDITIONS[(CONDITIONS.indexOf(value) + 1) % CONDITIONS.length]!);
 
-  return <View style={styles.screen}><View style={styles.header}><Text style={styles.title}>Explore</Text><Text style={styles.subtitle}>Search honest listings from local sellers</Text><SearchBar value={query} onChangeText={setQuery} onFilter={toggleCondition}/><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{["All", ...categories.map((item) => item.name)].map((item) => <FilterChip key={item} label={item} selected={category === item} onPress={() => setCategory(item)}/>)}</ScrollView><View style={styles.resultRow}><Text style={styles.results}>{data ? `${data.total} products` : " "}</Text><FilterChip label={condition} selected={condition !== "Any condition"} onPress={toggleCondition}/></View>{error && <ErrorMessage message={error}/>}</View>{loading && !data ? <LoadingIndicator/> : <ProductGrid data={products} wishlist={wishlist} onWishlist={toggleWishlist} onProduct={(product) => navigation.navigate("ProductDetail", { id: product.id })} ListEmptyComponent={<EmptyState icon="search-outline" title="No products found" message="Try another search, category, or condition." action="Clear filters" onAction={() => { setQuery(""); setCategory("All"); setCondition("Any condition"); }}/>}/>}</View>;
+  return <View style={styles.screen}><View style={styles.header}><Text style={styles.title}>Explore</Text><Text style={styles.subtitle}>Search honest listings from local sellers</Text><SearchBar value={query} onChangeText={setQuery}/><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{["All", ...categories.map((item) => item.name)].map((item) => <FilterChip key={item} label={item} selected={category === item} onPress={() => setCategory(item)}/>)}</ScrollView><View style={styles.resultRow}><Text style={styles.results}>{data ? `${data.total} ${data.total === 1 ? "product" : "products"}` : " "}</Text><FilterChip label={condition} selected={condition !== "Any condition"} onPress={toggleCondition}/></View>{error && <ErrorMessage message={error}/>}</View>{loading && !data ? <LoadingIndicator/> : <ProductGrid data={products} wishlist={wishlist} onWishlist={toggleWishlist} onProduct={(product) => navigation.navigate("ProductDetail", { id: product.id })} ListEmptyComponent={<EmptyState icon="search-outline" title="No products found" message="Try another search, category, or condition." action="Clear filters" onAction={() => { setQuery(""); setCategory("All"); setCondition("Any condition"); }}/>}/>}</View>;
 }
 
 const styles = StyleSheet.create({
