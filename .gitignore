@@ -20,5 +20,12 @@ logs/
 /.plugins/
 /.opencode-skills/
 
+# .NET backend
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+
 # Expo local state (device list, dev-server settings); recreated by `expo start`
 .expo/

@@ -1,0 +1,38 @@
+@api = http://localhost:5080
+
+# 1. Sign in, then paste the returned token below.
+POST {{api}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "customer@againbuy.demo", "password": "Customer123!" }
+
+###
+@token = paste-token-here
+
+GET {{api}}/api/products?category=Electronics&sort=price_asc
+Authorization: Bearer {{token}}
+
+###
+GET {{api}}/api/conversations
+Authorization: Bearer {{token}}
+
+###
+POST {{api}}/api/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Yamaha Acoustic Guitar",
+  "category": "Electronics",
+  "price": 25000,
+  "originalPrice": 42000,
+  "condition": "Like new",
+  "brand": "Yamaha",
+  "model": "F310",
+  "usage": "1 year",
+  "purchaseYear": 2024,
+  "description": "Well-kept guitar with new strings, played at home only.",
+  "defects": "None",
+  "accessories": "Gig bag",
+  "location": "Colombo 05"
+}
