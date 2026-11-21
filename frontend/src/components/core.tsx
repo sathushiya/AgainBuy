@@ -11,8 +11,8 @@ export function ScreenContainer({ children, scroll = true, keyboardAware = false
   return <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>{keyboardAware ? <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>{content}</KeyboardAvoidingView> : content}</SafeAreaView>;
 }
 
-export function AppHeader({ title, subtitle, onNotifications, brand = false }: { title?: string; subtitle?: string; onNotifications?: () => void; brand?: boolean }) {
-  return <View style={styles.header}>{brand ? <AgainBuyLogo width={142}/> : <View style={styles.flex}>{title && <Text style={styles.headerTitle}>{title}</Text>}{subtitle && <Text style={styles.headerSubtitle}>{subtitle}</Text>}</View>}{onNotifications && <IconButton icon="notifications-outline" label="Open notifications" onPress={onNotifications} badge/>}</View>;
+export function AppHeader({ title, subtitle, onNotifications, notificationBadge = true, brand = false }: { title?: string; subtitle?: string; onNotifications?: () => void; notificationBadge?: boolean | number; brand?: boolean }) {
+  return <View style={styles.header}>{brand ? <AgainBuyLogo width={142}/> : <View style={styles.flex}>{title && <Text style={styles.headerTitle}>{title}</Text>}{subtitle && <Text style={styles.headerSubtitle}>{subtitle}</Text>}</View>}{onNotifications && <IconButton icon="notifications-outline" label={typeof notificationBadge === "number" && notificationBadge > 0 ? `Open notifications, ${notificationBadge} unread` : "Open notifications"} onPress={onNotifications} badge={notificationBadge}/>}</View>;
 }
 
 export function PrimaryButton({ title, onPress, disabled, loading, icon, style }: { title: string; onPress: () => void; disabled?: boolean; loading?: boolean; icon?: ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -23,8 +23,9 @@ export function SecondaryButton({ title, onPress, icon, style, destructive }: { 
   return <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} style={({ pressed }) => [styles.secondary, style, destructive && styles.destructiveSoft, pressed && styles.pressed]}>{icon}<Text style={[styles.secondaryText, destructive && styles.destructiveText]}>{title}</Text></Pressable>;
 }
 
-export function IconButton({ icon, label, onPress, badge }: { icon: AppIconName; label: string; onPress: () => void; badge?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} hitSlop={6} onPress={onPress} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><AppIcon name={icon} size={21} color={colors.charcoal}/>{badge && <View style={styles.notificationDot}/>}</Pressable>;
+/** `badge`: true shows a dot; a number shows a count bubble (hidden at 0). */
+export function IconButton({ icon, label, onPress, badge }: { icon: AppIconName; label: string; onPress: () => void; badge?: boolean | number }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} hitSlop={6} onPress={onPress} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><AppIcon name={icon} size={21} color={colors.charcoal}/>{typeof badge === "number" ? badge > 0 && <View style={styles.countBadge}><Text style={styles.countBadgeText}>{badge > 99 ? "99+" : badge}</Text></View> : badge && <View style={styles.notificationDot}/>}</Pressable>;
 }
 
 export function AppTextInput({ label, error, multiline, rightElement, ...props }: TextInputProps & { label: string; error?: string; rightElement?: ReactNode }) {
@@ -91,6 +92,8 @@ const styles = StyleSheet.create({
   header: { minHeight: 55, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, marginBottom: spacing.md },
   headerTitle: { ...typography.heading, color: colors.charcoal },
   headerSubtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  countBadge: { position: "absolute", top: -6, right: -6, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: colors.terracotta, borderWidth: 2, borderColor: colors.white, alignItems: "center", justifyContent: "center" },
+  countBadgeText: { ...typography.label, fontSize: 10, lineHeight: 12, color: colors.white },
   iconButton: { width: 44, height: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
   notificationDot: { position: "absolute", top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.terracotta, borderWidth: 2, borderColor: colors.white },
   primary: { minHeight: 52, borderRadius: radius.md, paddingHorizontal: spacing.md, backgroundColor: colors.terracotta, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs },
