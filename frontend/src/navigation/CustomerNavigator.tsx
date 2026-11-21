@@ -25,6 +25,7 @@ const icons: Record<string, AppIconName> = {
 };
 
 function CustomerTabs() {
+  const { unreadMessages } = useApp();
   return <Tab.Navigator screenOptions={({ route }) => {
     const iconName = icons[route.name] ?? "grid-outline";
     return {
@@ -35,7 +36,7 @@ function CustomerTabs() {
       tabBarStyle: { height: 74, paddingTop: 7, paddingBottom: 10, borderTopColor: colors.border, backgroundColor: colors.white },
       tabBarIcon: ({ color, size, focused }) => route.name === "Sell" ? <View style={styles.sellIcon}><AppIcon name="add" size={27} color={colors.white}/></View> : <AppIcon name={focused ? iconName.replace("-outline", "") : iconName} size={size} color={color}/>,
     };
-  }}><Tab.Screen name="Home" component={HomeScreen}/><Tab.Screen name="Explore" component={ExploreScreen}/><Tab.Screen name="Sell" component={SellScreen}/><Tab.Screen name="Messages" component={MessagesScreen}/><Tab.Screen name="Profile" component={RoleProfileScreen}/></Tab.Navigator>;
+  }}><Tab.Screen name="Home" component={HomeScreen}/><Tab.Screen name="Explore" component={ExploreScreen}/><Tab.Screen name="Sell" component={SellScreen}/><Tab.Screen name="Messages" component={MessagesScreen} options={{ tabBarBadge: unreadMessages > 0 ? (unreadMessages > 99 ? "99+" : unreadMessages) : undefined, tabBarBadgeStyle: { backgroundColor: colors.terracotta, color: colors.white, fontSize: 10 } }}/><Tab.Screen name="Profile" component={RoleProfileScreen}/></Tab.Navigator>;
 }
 
 export function CustomerNavigator() {

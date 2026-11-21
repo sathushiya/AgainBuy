@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using AgainBuy.Api.Contracts;
+using AgainBuy.Api.Data;
 using AgainBuy.Api.Domain;
 
 namespace AgainBuy.Api.Tests;
@@ -163,6 +164,24 @@ public class MarketplaceTests
         Assert.Equal(2, (await again.Read<ConversationDetailDto>()).Messages.Count);
 
         Assert.Equal(HttpStatusCode.BadRequest, (await customer.PostAsJsonAsync("/api/conversations", new { productId = "mine_1", message = "Hello me" })).StatusCode);
+    }
+
+    [Fact]
+    public async Task Unread_count_covers_all_conversations_and_clears_when_read()
+    {
+        await using var factory = new ApiFactory();
+        var maya = await factory.Customer();
+        var buyer = await factory.SignedInClient(SeedData.DemoBuyerEmail, SeedData.DemoBuyerPassword);
+        async Task<int> Unread(HttpClient client) => (await (await client.GetAsync("/api/conversations/unread-count")).Read<UnreadCountDto>()).Count;
+
+        Assert.Equal(2, await Unread(maya));
+        await maya.GetAsync("/api/conversations/c1");
+        Assert.Equal(0, await Unread(maya));
+
+        // A buyer messaging Maya about her own listing shows up on her side only.
+        await buyer.PostAsJsonAsync("/api/conversations", new { productId = "mine_1", message = "Are the headphones still available?" });
+        Assert.Equal(1, await Unread(maya));
+        Assert.Equal(0, await Unread(buyer));
     }
 
     [Fact]

@@ -22,6 +22,18 @@ public class ConversationsController(AppDbContext db, TimeProvider time) : Contr
         return summaries.OrderByDescending(summary => summary.Time).ToList();
     }
 
+    /// <summary>Total unread messages across all of the user's conversations, for badges. Cheap enough to poll.</summary>
+    [HttpGet("unread-count")]
+    public async Task<ActionResult<UnreadCountDto>> UnreadCount(CancellationToken cancellationToken)
+    {
+        var userId = User.UserId();
+        var count = await db.Messages.CountAsync(message =>
+            message.SenderId != userId && message.ReadAt == null &&
+            db.Conversations.Any(conversation => conversation.Id == message.ConversationId &&
+                (conversation.BuyerId == userId || conversation.Product!.SellerId == userId)), cancellationToken);
+        return new UnreadCountDto(count);
+    }
+
     /// <summary>Returns the thread and marks the other participant's messages as read.</summary>
     [HttpGet("{id}")]
     public async Task<ActionResult<ConversationDetailDto>> Get(string id, CancellationToken cancellationToken)
@@ -79,9 +91,9 @@ public class ConversationsController(AppDbContext db, TimeProvider time) : Contr
 
     private Message NewMessage(string conversationId, User sender, string body)
     {
-        var now = time.GetUtcNow().UtcDateTime;
-        // A sender has obviously read everything up to their own message.
-        return new Message { ConversationId = conversationId, SenderId = sender.Id, SenderName = sender.Name, Body = body.Trim(), SentAt = now, ReadAt = now };
+        // ReadAt records when the *recipient* read it, so a new message starts unread.
+        // The sender's own messages never count as unread for them (see Summaries).
+        return new Message { ConversationId = conversationId, SenderId = sender.Id, SenderName = sender.Name, Body = body.Trim(), SentAt = time.GetUtcNow().UtcDateTime };
     }
 
     private Task<bool> IsParticipant(string conversationId, string userId, CancellationToken cancellationToken) =>
