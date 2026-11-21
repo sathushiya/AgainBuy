@@ -22,6 +22,18 @@ On startup the API applies any pending migrations. In Development it then seeds 
 
 To inspect the data: `docker exec -it againbuy-postgres psql -U againbuy -d againbuy`, or connect any PostgreSQL client (pgAdmin, DBeaver) to `localhost:5432`, database `againbuy`, user `againbuy`, password `againbuy_dev`.
 
+### Changing the schema
+
+After editing entities or `AppDbContext`, add a migration (the `dotnet-ef` tool is pinned in `dotnet-tools.json`):
+
+```bash
+cd backend
+dotnet tool restore
+dotnet ef migrations add <Name> --project AgainBuy.Api --output-dir Data/Migrations
+```
+
+It's applied automatically on the next start.
+
 | Role | Email | Password |
 |---|---|---|
 | Customer | `customer@againbuy.demo` | `Customer123!` |
@@ -110,5 +122,6 @@ AgainBuy.Api/
   Domain/               entities and enums
   Infrastructure/       small helpers (ids, enum parsing, rate-limit names)
 docker-compose.yml      local PostgreSQL
+dotnet-tools.json       pinned dotnet-ef tool
 AgainBuy.Api.Tests/     xUnit integration tests (WebApplicationFactory, throwaway PostgreSQL database per test)
 ```
