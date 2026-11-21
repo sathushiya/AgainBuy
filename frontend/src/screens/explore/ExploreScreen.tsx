@@ -14,8 +14,9 @@ export function ExploreScreen({ navigation, route }: { navigation: any; route: a
   const [category, setCategory] = React.useState(route.params?.category ?? "All");
   const [condition, setCondition] = React.useState("Any condition");
 
-  // Categories tapped on Home arrive as a route param.
-  React.useEffect(() => { if (route.params?.category) setCategory(route.params.category); }, [route.params?.category]);
+  // Home sends the category to show ("All" for View all). Re-apply it on every
+  // navigation, even if the value is unchanged, since this tab keeps its state.
+  React.useEffect(() => { if (route.params?.category) setCategory(route.params.category); }, [route.params]);
 
   // Wait for a pause in typing before asking the server.
   React.useEffect(() => {
