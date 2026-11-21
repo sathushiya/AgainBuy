@@ -3,6 +3,7 @@ import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fr
 import { EmptyState, ErrorMessage, LoadingIndicator, ScreenContainer, SearchBar } from "../../components/core";
 import { AppIcon } from "../../components/AppIcon";
 import { ConversationCard, MessageBubble, ProductImage } from "../../components/marketplace";
+import { useApp } from "../../context/AppContext";
 import { useApiData } from "../../hooks/useApiData";
 import { api, errorMessage } from "../../services/api";
 import { colors, radius, spacing, typography } from "../../theme";
@@ -11,10 +12,13 @@ import { messageTime } from "../../utils/format";
 
 export function MessagesScreen({ navigation }: { navigation: any }) {
   const [query, setQuery] = React.useState("");
-  const { data: conversations = [], error, loading } = useApiData(() => api.conversations());
+  const { refreshUnreadMessages } = useApp();
+  const { data: conversations, error, loading } = useApiData(() => api.conversations());
+  // Keep the tab and bell badges in step with what this list shows.
+  React.useEffect(() => { if (conversations) refreshUnreadMessages(); }, [conversations, refreshUnreadMessages]);
   const needle = query.toLowerCase();
-  const filtered = conversations.filter((item) => item.person.toLowerCase().includes(needle) || item.productTitle.toLowerCase().includes(needle));
-  return <ScreenContainer scroll={false} contentStyle={styles.screen}><View style={styles.header}><Text style={styles.title}>Messages</Text><Text style={styles.subtitle}>Talk directly with buyers and sellers</Text><SearchBar value={query} onChangeText={setQuery} placeholder="Search conversations"/>{error && <ErrorMessage message={error}/>}</View>{loading && conversations.length === 0 ? <LoadingIndicator/> : <FlatList data={filtered} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} ListEmptyComponent={<EmptyState icon="chatbubbles-outline" title="No conversations" message="Messages about products will appear here."/>} renderItem={({ item }) => <ConversationCard conversation={item} onPress={() => navigation.navigate("Conversation", { id: item.id })}/>}/>}</ScreenContainer>;
+  const filtered = (conversations ?? []).filter((item) => item.person.toLowerCase().includes(needle) || item.productTitle.toLowerCase().includes(needle));
+  return <ScreenContainer scroll={false} contentStyle={styles.screen}><View style={styles.header}><Text style={styles.title}>Messages</Text><Text style={styles.subtitle}>Talk directly with buyers and sellers</Text><SearchBar value={query} onChangeText={setQuery} placeholder="Search conversations"/>{error && <ErrorMessage message={error}/>}</View>{loading && !conversations ? <LoadingIndicator/> : <FlatList data={filtered} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} ListEmptyComponent={<EmptyState icon="chatbubbles-outline" title="No conversations" message="Messages about products will appear here."/>} renderItem={({ item }) => <ConversationCard conversation={item} onPress={() => navigation.navigate("Conversation", { id: item.id })}/>}/>}</ScreenContainer>;
 }
 
 /**
@@ -36,6 +40,9 @@ export function ConversationScreen({ route }: { route: any }) {
     if (id !== conversationId) setConversationId(id);
     return api.conversation(id);
   }, [conversationId, productId]);
+  // Opening the thread marks it read on the server; update the badges.
+  const { refreshUnreadMessages } = useApp();
+  React.useEffect(() => { if (detail) refreshUnreadMessages(); }, [detail?.conversation.id, refreshUnreadMessages]);
   const productKey = productId ?? detail?.conversation.productId;
   const { data: product } = useApiData(async () => productKey ? api.product(productKey) : null, [productKey]);
 
