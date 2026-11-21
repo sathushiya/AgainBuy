@@ -106,6 +106,7 @@ export const api = {
 
   // Messages
   conversations: () => request<Conversation[]>("GET", "/api/conversations"),
+  unreadCount: () => request<{ count: number }>("GET", "/api/conversations/unread-count"),
   conversation: (id: string) => request<ConversationDetail>("GET", `/api/conversations/${encodeURIComponent(id)}`),
   startConversation: (productId: string, message: string) => request<ConversationDetail>("POST", "/api/conversations", { body: { productId, message } }),
   sendMessage: (conversationId: string, body: string) => request<Message>("POST", `/api/conversations/${encodeURIComponent(conversationId)}/messages`, { body: { body } }),
