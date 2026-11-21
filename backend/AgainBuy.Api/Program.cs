@@ -87,7 +87,7 @@ var app = builder.Build();
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.EnsureCreatedAsync();
+    await db.Database.MigrateAsync();
     if (app.Configuration.GetValue<bool>("Database:SeedDemoData"))
         await SeedData.SeedAsync(db, scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>());
 }
