@@ -110,6 +110,10 @@ Errors use RFC 7807 problem details; validation errors list messages per field, 
 - **Seeded sellers have no accounts.** The demo listings (`p1`–`p8`) belong to display-only sellers, so nobody can sign in to reply as them. Only the customer's own listing (`mine_1`) and new listings have a seller account behind them.
 - **Forgot password only logs the request.** No email provider is configured yet.
 
+## The mobile app
+
+The app in `frontend/` calls this API through `frontend/src/services/api.ts`, which has one typed function per endpoint. It sends the token as `Authorization: Bearer <token>` and signs the user out on a 401. The API address is set in `frontend/src/config/apiUrl.ts`; see the frontend README for physical phones. When you add or change an endpoint, update `api.ts` and the types in `frontend/src/types/index.ts` to match.
+
 ## Layout
 
 ```

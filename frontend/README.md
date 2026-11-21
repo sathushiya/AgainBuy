@@ -25,33 +25,45 @@ pnpm install
 npx expo start
 ```
 
-Then open with Expo Go or an Android/iOS emulator.
+Then open with Expo Go or an Android/iOS emulator. Start the backend first (see `../backend/README.md`): all data comes from the AgainBuy API.
+
+### API address
+
+The app calls `http://localhost:5080` on web and the iOS simulator, and `http://10.0.2.2:5080` on the Android emulator (see `src/config/apiUrl.ts`). On a physical phone, set your computer's LAN IP before starting Expo, and make the API listen on it:
+
+```powershell
+$env:EXPO_PUBLIC_API_URL = "http://192.168.1.20:5080"   # your computer's IP
+npx expo start --clear
+
+# in backend/
+dotnet run --project AgainBuy.Api --urls http://0.0.0.0:5080
+```
 
 Useful checks:
 
 ```bash
 pnpm typecheck
-pnpm test:data
-pnpm test:roles
+pnpm test:roles          # signs in through the API; needs the backend running
 pnpm exec expo export --platform android
 pnpm exec expo export --platform ios
 ```
 
 ## Demo sign-in and roles
 
-Expand **Demo Accounts** on the shared login screen. These credentials are local development fixtures:
+Expand **Demo Accounts** on the shared login screen. These accounts are seeded by the backend in development:
 
 | Role | Email | Password |
 |---|---|---|
 | Customer | `customer@againbuy.demo` | `Customer123!` |
+| Customer (second account) | `demo@againbuy.demo` | `Demo1234!` |
 | Administrator | `admin@againbuy.demo` | `Admin123!` |
 
-Authentication is simulated by `src/services/authService.ts`. Each account opens a separate protected navigator:
+Sign-in goes through the API (`src/services/authService.ts`); the token is kept in memory, so reloading the app signs you out. Each account opens a separate protected navigator:
 
 - Customer: Home, Explore, Sell, Messages, Profile
 - Administrator: Overview, Users, Facilities, Moderation, Profile
 
-Permissions are centralized in `src/config/permissions.ts`. Production authentication and authorization must be enforced by a secure backend.
+Permissions are centralized in `src/config/permissions.ts`. The API enforces the same permissions server-side (`backend/AgainBuy.Api/Auth/Permissions.cs`); hiding routes in the app is only for navigation.
 
 ## Implemented flows
 
@@ -60,16 +72,16 @@ Permissions are centralized in `src/config/permissions.ts`. Production authentic
 - Warm marketplace home with categories and product discovery
 - Search and filtering by category and condition
 - Product details with prices, usage, year, condition, defects, accessories, seller, and location
-- Wishlist updates
-- Sell-an-item form with Zod validation, preview, and local publication
-- My Listings with local deactivation
-- Product messaging and local message sending
-- Purchases and sales history
+- Wishlist saved to your account
+- Sell-an-item form with Zod validation, preview, and publishing to the API
+- My Listings with deactivation and reactivation
+- Messaging with sellers, unread counts, and new conversations from product pages
+- Reserving items, plus purchase and sales history with complete/cancel
 - Settings, help, safety guidance, and logout confirmation
-- Exact mock login for Customer and Administrator
+- API sign-in for Customer and Administrator
 - Role-specific dashboards, navigation, profiles, and logout
 - Platform user management, facility records, and listing moderation
-- Confirmation-protected simulated administrative operations
+- Confirmation-protected admin actions: role changes, account deactivation, moderation
 
 ## Brand assets
 
@@ -80,10 +92,9 @@ Permissions are centralized in `src/config/permissions.ts`. Production authentic
 
 Brand colors are centralized in `src/theme/index.ts`.
 
-## Demonstration limitations
+## Current limitations
 
-- Purchases do not process money or create real orders.
-- Listings and messages remain in local application state.
-- Product images and marketplace data are samples.
-- A production service must authenticate users, moderate listings, store images, secure messaging, and validate transactions server-side.
-- Hiding mobile routes is not sufficient authorization; the backend must validate every protected operation.
+- Purchases reserve the item and schedule a meetup; no money is processed.
+- Photo upload is not built yet; new listings show a placeholder image.
+- Sessions are not saved, so restarting the app signs you out.
+- Seeded product images and marketplace data are samples.
