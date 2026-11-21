@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AgainBuy.Api.Tests/AgainBuy.Api.Tests.csproj" />
+  <Project Path="AgainBuy.Api/AgainBuy.Api.csproj" />
+</Solution>
