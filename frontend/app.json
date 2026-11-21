@@ -23,6 +23,14 @@
       },
       "package": "com.againbuy.mobile",
       "edgeToEdgeEnabled": true
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "AgainBuy needs access to your photos so you can add pictures to your listings."
+        }
+      ]
+    ]
   }
 }
