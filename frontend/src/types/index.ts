@@ -1,6 +1,10 @@
+// These mirror the JSON returned by the AgainBuy API (backend/AgainBuy.Api/Contracts/Dtos.cs).
+// Timestamps are ISO-8601 UTC strings; format them with src/utils/format.ts.
+
 export type ProductCondition = "Like new" | "Excellent" | "Good" | "Fair";
 export type ListingStatus = "Active" | "Reserved" | "Sold" | "Inactive";
 export type UserRole = "customer" | "admin";
+export type AccountStatus = "Active" | "Review" | "Inactive";
 
 export interface AppUser {
   id: string;
@@ -10,6 +14,13 @@ export interface AppUser {
   avatar: string;
   location: string;
   memberSince: string;
+  permissions: string[];
+}
+
+export interface AuthResponse {
+  token: string;
+  expiresAt: string;
+  user: AppUser;
 }
 
 export interface Product {
@@ -17,9 +28,9 @@ export interface Product {
   title: string;
   category: string;
   price: number;
-  originalPrice?: number;
+  originalPrice: number | null;
   image: string;
-  images?: string[];
+  images: string[];
   condition: ProductCondition;
   usage: string;
   purchaseYear: number;
@@ -34,11 +45,41 @@ export interface Product {
   accessories: string;
   listedAt: string;
   status: ListingStatus;
+  isOwn: boolean;
+}
+
+export interface ListingInput {
+  title: string;
+  category: string;
+  price: number;
+  originalPrice?: number;
+  condition: ProductCondition;
+  brand: string;
+  model: string;
+  usage: string;
+  purchaseYear: number;
+  description: string;
+  defects: string;
+  accessories?: string;
+  location: string;
+  images?: string[];
+}
+
+export interface PagedResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+export interface Category {
+  id: number;
+  name: string;
 }
 
 export type User = AppUser;
 
-export interface DemoUser extends AppUser {
+export interface DemoUser extends Omit<AppUser, "permissions"> {
   password: string;
   description: string;
 }
@@ -52,10 +93,11 @@ export interface Facility {
   status: "Operational" | "Limited" | "Maintenance";
 }
 
-
 export interface Conversation {
   id: string;
   productId: string;
+  productTitle: string;
+  productImage: string;
   person: string;
   avatar: string;
   lastMessage: string;
@@ -63,12 +105,60 @@ export interface Conversation {
   unread: number;
 }
 
+export interface Message {
+  id: number;
+  senderName: string;
+  body: string;
+  sentAt: string;
+  isMine: boolean;
+}
+
+export interface ConversationDetail {
+  conversation: Conversation;
+  messages: Message[];
+}
+
+export type TransactionStatus = "Completed" | "Meetup scheduled" | "Cancelled";
+
 export interface Transaction {
   id: string;
   productId: string;
+  productTitle: string;
+  productImage: string;
   type: "purchase" | "sale";
   party: string;
   amount: number;
   date: string;
-  status: "Completed" | "Meetup scheduled" | "Cancelled";
+  status: TransactionStatus;
+}
+
+export interface PlatformUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  status: AccountStatus;
+  joined: string;
+}
+
+export type ModerationStatus = "Pending" | "Evidence requested" | "Urgent" | "Dismissed" | "Removed";
+
+export interface ModerationCase {
+  id: string;
+  productId: string | null;
+  title: string;
+  reason: string;
+  seller: string;
+  status: ModerationStatus;
+  createdAt: string;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  activeCustomers: number;
+  facilities: number;
+  activeListings: number;
+  pendingReviews: number;
+  reportsAndFlags: number;
+  recentActivity: { description: string; at: string }[];
 }
