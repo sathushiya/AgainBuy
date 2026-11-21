@@ -4,8 +4,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AgainBuy.Api.Contracts;
 using AgainBuy.Api.Data;
+using AgainBuy.Api.Images;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
@@ -33,7 +35,20 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Jwt:Key", "integration-test-signing-key-0123456789abcdef");
         builder.UseSetting("Database:SeedDemoData", "true");
         builder.UseSetting("RateLimiting:AuthPermitPerMinute", "1000");
+        if (CloudName is not null)
+        {
+            builder.UseSetting("Cloudinary:CloudName", CloudName);
+            builder.UseSetting("Cloudinary:ApiKey", "test-key");
+            builder.UseSetting("Cloudinary:ApiSecret", "test-secret");
+        }
+        // Never call the real Cloudinary from tests.
+        builder.ConfigureTestServices(services => services.AddSingleton<IImageStorage>(Images));
     }
+
+    public FakeImageStorage Images { get; } = new();
+
+    /// <summary>Set to simulate a server with Cloudinary credentials configured.</summary>
+    public string? CloudName { get; init; }
 
     public async Task<HttpClient> SignedInClient(string email, string password)
     {
