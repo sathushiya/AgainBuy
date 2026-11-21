@@ -2,17 +2,19 @@ using AgainBuy.Api.Auth;
 using AgainBuy.Api.Contracts;
 using AgainBuy.Api.Data;
 using AgainBuy.Api.Domain;
+using AgainBuy.Api.Images;
 using AgainBuy.Api.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AgainBuy.Api.Controllers;
 
 [ApiController]
 [Route("api/products")]
 [Authorize(Policy = Permissions.MarketplaceBrowse)]
-public class ProductsController(AppDbContext db) : ControllerBase
+public class ProductsController(AppDbContext db, IOptions<CloudinaryOptions> cloudinary) : ControllerBase
 {
     private const int MaxPageSize = 50;
 
@@ -209,10 +211,22 @@ public class ProductsController(AppDbContext db) : ControllerBase
             errors["purchaseYear"] = ["Purchase year cannot be in the future."];
         if (request.OriginalPrice is { } original && original < request.Price)
             errors["originalPrice"] = ["Original price should not be lower than the selling price."];
-        if (request.Images?.Any(image => !Uri.TryCreate(image, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp)) == true)
-            errors["images"] = ["Images must be absolute http(s) URLs."];
+        if (request.Images?.Any(image => !IsAllowedImage(image)) == true)
+            errors["images"] = [cloudinary.Value.IsComplete ? "Upload photos through the app; outside image links are not allowed." : "Images must be absolute http(s) URLs."];
 
         return errors.Count == 0 ? null : ValidationProblem(new ValidationProblemDetails(errors));
+    }
+
+    // With Cloudinary configured, only photos uploaded to our own cloud are
+    // accepted, so listings can't hotlink arbitrary content.
+    private bool IsAllowedImage(string image)
+    {
+        if (!Uri.TryCreate(image, UriKind.Absolute, out var uri)) return false;
+        var options = cloudinary.Value;
+        if (!options.IsComplete) return uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp;
+        return uri.Scheme == Uri.UriSchemeHttps
+            && uri.Host == "res.cloudinary.com"
+            && uri.AbsolutePath.StartsWith($"/{options.CloudName}/image/upload/", StringComparison.Ordinal);
     }
 
     private static void Apply(Product product, UpsertListingRequest request)
