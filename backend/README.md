@@ -50,8 +50,26 @@ It's applied automatically on the next start.
 | `Database:SeedDemoData` | Seed demo accounts and listings into an empty database | `true` (off in production) |
 | `Cors:Origins` | Allowed browser origins (Expo web) | `localhost:8081`, `8443`, `19006` |
 | `RateLimiting:AuthPermitPerMinute` | Requests per IP per minute to `/api/auth/*` | `10` |
+| `RateLimiting:UploadsPerMinute` | Photo uploads per user per minute | `30` |
+| `Cloudinary:CloudName`, `Cloudinary:ApiKey`, `Cloudinary:ApiSecret` | Cloudinary credentials for listing photos. If any is missing, the API still runs but `/api/uploads/images` answers 503. **Never commit these.** | empty |
+| `Cloudinary:Folder` | Cloudinary folder for listing photos | `againbuy/listings` |
 
-Use environment variables in production, e.g. `Jwt__Key=...`, `ConnectionStrings__Default=...`.
+Use environment variables in production, e.g. `Jwt__Key=...`, `ConnectionStrings__Default=...`, `Cloudinary__ApiSecret=...`.
+
+### Setting up Cloudinary (photo uploads)
+
+1. Create a free account at [cloudinary.com](https://cloudinary.com). On the dashboard, under **API Keys**, copy the **Cloud name**, **API Key** and **API Secret**.
+2. Store them as .NET user secrets. These are kept in your Windows user profile, outside the repo:
+
+   ```bash
+   cd backend
+   dotnet user-secrets set "Cloudinary:CloudName" "your-cloud-name" --project AgainBuy.Api
+   dotnet user-secrets set "Cloudinary:ApiKey" "your-api-key" --project AgainBuy.Api
+   dotnet user-secrets set "Cloudinary:ApiSecret" "your-api-secret" --project AgainBuy.Api
+   ```
+3. Restart the API.
+
+How it works: the app shrinks each photo to 1600px JPEG and sends it to `POST /api/uploads/images`. The API checks that it's a real image (by its bytes), limits it to 10 MB, and uploads it to Cloudinary. Cloudinary caps the size again and strips metadata such as GPS location. The API returns the photo's URL, and the listing stores only that URL in PostgreSQL. With Cloudinary configured, listings only accept photos from your own Cloudinary account.
 
 ## Endpoints
 
@@ -76,6 +94,7 @@ All routes are under `/api`. A 🔒 means a bearer token is required; the policy
 | POST | `/products/{id}/report` | 🔒 `marketplace.browse` |
 | GET | `/products/mine` | 🔒 `listing.manage_own` |
 | POST | `/products` | 🔒 `listing.create` |
+| POST | `/uploads/images` (multipart field `file`) → `{ url, width, height }` | 🔒 `listing.create`; JPEG/PNG/WebP/HEIC, max 10 MB |
 | PUT | `/products/{id}` | 🔒 `listing.manage_own`, own listing only |
 | POST | `/products/{id}/deactivate`, `/products/{id}/activate` | 🔒 `listing.manage_own`, own listing only |
 | GET | `/wishlist`, `/wishlist/ids` | 🔒 `marketplace.browse` |
@@ -109,6 +128,7 @@ Errors use RFC 7807 problem details; validation errors list messages per field, 
 - **Moderation removal is final for sellers.** A listing removed by a moderator can't be edited or reactivated by its owner.
 - **Seeded sellers have no accounts.** The demo listings (`p1`–`p8`) belong to display-only sellers, so nobody can sign in to reply as them. Only the customer's own listing (`mine_1`) and new listings have a seller account behind them.
 - **Forgot password only logs the request.** No email provider is configured yet.
+- **Unused photos aren't cleaned up.** A photo uploaded and then removed before publishing stays in Cloudinary (tagged `againbuy`). Deleting listings doesn't delete their photos either.
 
 ## The mobile app
 
@@ -120,10 +140,11 @@ The app in `frontend/` calls this API through `frontend/src/services/api.ts`, wh
 AgainBuy.Api/
   Program.cs            service wiring, JWT validation, policies, rate limiting, DB init
   Auth/                 permissions map, JWT options and token issuing
-  Controllers/          Auth, Products, Wishlist, Conversations, Transactions, Categories, Admin
+  Controllers/          Auth, Products, Uploads, Wishlist, Conversations, Transactions, Categories, Admin
   Contracts/            request/response records and entity → DTO mapping
   Data/                 AppDbContext, demo seed data, Migrations/
   Domain/               entities and enums
+  Images/               Cloudinary photo storage
   Infrastructure/       small helpers (ids, enum parsing, rate-limit names)
 docker-compose.yml      local PostgreSQL
 dotnet-tools.json       pinned dotnet-ef tool

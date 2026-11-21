@@ -20,6 +20,7 @@ Frontend (`frontend/`):
 - `src/components/` - Shared UI; `src/theme/index.ts` - brand colours and typography
 - `src/context/AppContext.tsx` - Session and wishlist state
 - `src/services/api.ts` - Typed client for every API endpoint; `src/services/authService.ts` - sign-in; `src/config/apiUrl.ts` - API address
+- `src/services/photos.ts` - Picks, resizes and uploads listing photos
 - `src/hooks/useApiData.ts` - Loads API data per screen and refreshes on focus; `src/data/demoUsers.ts` - demo credentials shown on the login screen
 - `src/config/permissions.ts` - Role permissions (mirrored by `backend/AgainBuy.Api/Auth/Permissions.cs`)
 - `src/types/index.ts` - Shared types (the API's JSON matches these)
@@ -27,7 +28,7 @@ Frontend (`frontend/`):
 
 Backend (`backend/`): see `backend/README.md`.
 - `AgainBuy.Api/Program.cs` - Service wiring, JWT, authorization policies
-- `AgainBuy.Api/Controllers/` - HTTP endpoints; `Contracts/` - DTOs; `Data/` - EF Core context and seed data
+- `AgainBuy.Api/Controllers/` - HTTP endpoints; `Contracts/` - DTOs; `Data/` - EF Core context and seed data; `Images/` - Cloudinary photo storage
 - `AgainBuy.Api.Tests/` - Integration tests (`dotnet test` from `backend/`)
 
 Root: `.mise.toml` - Node.js and pnpm versions; `.figma/make/` - Figma Make scripts.
