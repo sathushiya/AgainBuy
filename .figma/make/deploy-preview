@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+# The Expo app lives in frontend/; the .NET API in backend/ is not part of the Figma Make preview.
+cd "$(dirname "$0")/../../frontend"
 # Build in development mode to emit sourcemaps.
 pnpm run build --mode development
 figma make deploy-preview --build-dir dist
