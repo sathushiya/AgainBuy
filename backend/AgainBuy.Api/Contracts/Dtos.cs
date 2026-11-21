@@ -60,6 +60,8 @@ public record ConversationDto(string Id, string ProductId, string ProductTitle, 
 
 public record MessageDto(int Id, string SenderName, string Body, DateTime SentAt, bool IsMine);
 
+public record UnreadCountDto(int Count);
+
 public record ConversationDetailDto(ConversationDto Conversation, IReadOnlyList<MessageDto> Messages);
 
 public record StartConversationRequest([Required] string ProductId, [Required, MinLength(1), MaxLength(2000)] string Message);

@@ -22,6 +22,18 @@ public class ConversationsController(AppDbContext db, TimeProvider time) : Contr
         return summaries.OrderByDescending(summary => summary.Time).ToList();
     }
 
+    /// <summary>Total unread messages across all of the user's conversations, for badges. Cheap enough to poll.</summary>
+    [HttpGet("unread-count")]
+    public async Task<ActionResult<UnreadCountDto>> UnreadCount(CancellationToken cancellationToken)
+    {
+        var userId = User.UserId();
+        var count = await db.Messages.CountAsync(message =>
+            message.SenderId != userId && message.ReadAt == null &&
+            db.Conversations.Any(conversation => conversation.Id == message.ConversationId &&
+                (conversation.BuyerId == userId || conversation.Product!.SellerId == userId)), cancellationToken);
+        return new UnreadCountDto(count);
+    }
+
     /// <summary>Returns the thread and marks the other participant's messages as read.</summary>
     [HttpGet("{id}")]
     public async Task<ActionResult<ConversationDetailDto>> Get(string id, CancellationToken cancellationToken)
