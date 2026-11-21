@@ -9,6 +9,9 @@ interface AppContextValue {
   isAuthenticating: boolean;
   authError: string | null;
   wishlist: string[];
+  /** Unread messages across all conversations; drives the bell and Messages tab badges. */
+  unreadMessages: number;
+  refreshUnreadMessages: () => void;
   signIn: (email: string, password: string) => Promise<boolean>;
   /** Resolves to an error message, or null on success. */
   register: (name: string, email: string, password: string) => Promise<string | null>;
@@ -20,16 +23,20 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
+const UNREAD_POLL_MS = 15_000;
+
 export function AppProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [wishlist, setWishlist] = useState<string[]>([]);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   const logout = useCallback(() => {
     authService.signOut();
     setUser(null);
     setWishlist([]);
+    setUnreadMessages(0);
     setAuthError(null);
   }, []);
 
@@ -48,11 +55,27 @@ export function AppProvider({ children }: PropsWithChildren) {
     api.wishlistIds().then(setWishlist).catch(() => setWishlist([]));
   }, [user]);
 
+  const refreshUnreadMessages = useCallback(() => {
+    if (user?.role !== "customer") return;
+    // Badges are best-effort; a failed refresh keeps the last known count.
+    api.unreadCount().then(({ count }) => setUnreadMessages(count)).catch(() => {});
+  }, [user]);
+
+  // Poll while signed in so new messages show up without opening Messages.
+  useEffect(() => {
+    if (user?.role !== "customer") return;
+    refreshUnreadMessages();
+    const timer = setInterval(refreshUnreadMessages, UNREAD_POLL_MS);
+    return () => clearInterval(timer);
+  }, [user, refreshUnreadMessages]);
+
   const value = useMemo<AppContextValue>(() => ({
     user,
     isAuthenticating,
     authError,
     wishlist,
+    unreadMessages,
+    refreshUnreadMessages,
     async signIn(email, password) {
       if (isAuthenticating) return false;
       setIsAuthenticating(true);
@@ -84,7 +107,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     },
     clearAuthError() { setAuthError(null); },
     hasPermission(permission) { return canAccess(user?.role, permission); },
-  }), [user, wishlist, isAuthenticating, authError, logout]);
+  }), [user, wishlist, unreadMessages, refreshUnreadMessages, isAuthenticating, authError, logout]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
