@@ -13,6 +13,17 @@ export const demoUsers: readonly DemoUser[] = [
     description: "Buy and sell pre-loved products with one account.",
   },
   {
+    id: "demo_buyer",
+    name: "Demo Buyer",
+    email: "demo@againbuy.demo",
+    password: "Demo1234!",
+    role: "customer",
+    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=240&q=80",
+    location: "Nugegoda",
+    memberSince: "January 2025",
+    description: "A second customer: buy Maya's listings or message her as another person.",
+  },
+  {
     id: "admin_1",
     name: "Arun Jayawardena",
     email: "admin@againbuy.demo",

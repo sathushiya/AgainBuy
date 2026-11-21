@@ -1,25 +1,20 @@
-import { demoUsers } from "../data/demoUsers";
-import { AppUser } from "../types";
+import { api, setAuthToken } from "./api";
+import type { AuthResponse } from "../types";
 
-export class AuthenticationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AuthenticationError";
-  }
-}
-
-const wait = (milliseconds: number) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
-
+// Sign-in goes through the AgainBuy API; the token lives in memory only, so
+// reloading the app signs the user out.
 export const authService = {
-  async signIn(email: string, password: string): Promise<AppUser> {
-    await wait(700);
-    const normalizedEmail = email.trim().toLowerCase();
-    const account = demoUsers.find((candidate) => candidate.email === normalizedEmail && candidate.password === password);
-    if (!account) throw new AuthenticationError("Email or password is incorrect. Try a demo account.");
-    const { password: _password, description: _description, ...user } = account;
-    return user;
+  async signIn(email: string, password: string): Promise<AuthResponse> {
+    const session = await api.login(email.trim().toLowerCase(), password);
+    setAuthToken(session.token);
+    return session;
   },
-  async signOut() {
-    await wait(150);
+  async register(name: string, email: string, password: string): Promise<AuthResponse> {
+    const session = await api.register(name.trim(), email.trim().toLowerCase(), password);
+    setAuthToken(session.token);
+    return session;
+  },
+  signOut() {
+    setAuthToken(null);
   },
 };

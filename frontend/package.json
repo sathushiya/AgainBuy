@@ -10,7 +10,6 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test:data": "tsx scripts/testData.ts",
     "test:roles": "tsx scripts/testRoles.ts"
   },
   "dependencies": {

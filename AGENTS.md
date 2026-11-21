@@ -18,10 +18,11 @@ Frontend (`frontend/`):
 - `index.ts` / `App.tsx` - Expo entrypoint and root component (navigation, providers)
 - `src/screens/` - Screens grouped by feature; `src/navigation/` - customer and admin navigators
 - `src/components/` - Shared UI; `src/theme/index.ts` - brand colours and typography
-- `src/context/AppContext.tsx` - Session, wishlist and listing state
-- `src/data/` - Mock data; `src/services/authService.ts` - simulated sign-in
+- `src/context/AppContext.tsx` - Session and wishlist state
+- `src/services/api.ts` - Typed client for every API endpoint; `src/services/authService.ts` - sign-in; `src/config/apiUrl.ts` - API address
+- `src/hooks/useApiData.ts` - Loads API data per screen and refreshes on focus; `src/data/demoUsers.ts` - demo credentials shown on the login screen
 - `src/config/permissions.ts` - Role permissions (mirrored by `backend/AgainBuy.Api/Auth/Permissions.cs`)
-- `src/types/index.ts` - Shared types
+- `src/types/index.ts` - Shared types (the API's JSON matches these)
 - `package.json`, `app.json`, `tsconfig.json` - Dependencies, Expo config, TypeScript config
 
 Backend (`backend/`): see `backend/README.md`.

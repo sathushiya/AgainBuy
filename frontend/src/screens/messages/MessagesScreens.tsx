@@ -1,23 +1,71 @@
 import React from "react";
-import { FlatList, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { EmptyState, ScreenContainer, SearchBar } from "../../components/core";
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { EmptyState, ErrorMessage, LoadingIndicator, ScreenContainer, SearchBar } from "../../components/core";
 import { AppIcon } from "../../components/AppIcon";
-import { ConversationCard, MessageBubble } from "../../components/marketplace";
-import { conversations, products } from "../../data/mockData";
+import { ConversationCard, MessageBubble, ProductImage } from "../../components/marketplace";
+import { useApiData } from "../../hooks/useApiData";
+import { api, errorMessage } from "../../services/api";
 import { colors, radius, spacing, typography } from "../../theme";
+import { ConversationDetail } from "../../types";
+import { messageTime } from "../../utils/format";
 
 export function MessagesScreen({ navigation }: { navigation: any }) {
   const [query, setQuery] = React.useState("");
-  const filtered = conversations.filter((item) => item.person.toLowerCase().includes(query.toLowerCase()));
-  return <ScreenContainer scroll={false} contentStyle={styles.screen}><View style={styles.header}><Text style={styles.title}>Messages</Text><Text style={styles.subtitle}>Talk directly with buyers and sellers</Text><SearchBar value={query} onChangeText={setQuery} placeholder="Search conversations"/></View><FlatList data={filtered} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} ListEmptyComponent={<EmptyState icon="chatbubbles-outline" title="No conversations" message="Messages about products will appear here."/>} renderItem={({ item }) => <ConversationCard conversation={item} product={products.find((product) => product.id === item.productId)!} onPress={() => navigation.navigate("Conversation", { id: item.id })}/>}/></ScreenContainer>;
+  const { data: conversations = [], error, loading } = useApiData(() => api.conversations());
+  const needle = query.toLowerCase();
+  const filtered = conversations.filter((item) => item.person.toLowerCase().includes(needle) || item.productTitle.toLowerCase().includes(needle));
+  return <ScreenContainer scroll={false} contentStyle={styles.screen}><View style={styles.header}><Text style={styles.title}>Messages</Text><Text style={styles.subtitle}>Talk directly with buyers and sellers</Text><SearchBar value={query} onChangeText={setQuery} placeholder="Search conversations"/>{error && <ErrorMessage message={error}/>}</View>{loading && conversations.length === 0 ? <LoadingIndicator/> : <FlatList data={filtered} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} ListEmptyComponent={<EmptyState icon="chatbubbles-outline" title="No conversations" message="Messages about products will appear here."/>} renderItem={({ item }) => <ConversationCard conversation={item} onPress={() => navigation.navigate("Conversation", { id: item.id })}/>}/>}</ScreenContainer>;
 }
 
+/**
+ * Opened with { id } for an existing thread, or { productId } from a product
+ * page. In the second case the existing thread for that product is reused if
+ * there is one; otherwise the first message starts it.
+ */
 export function ConversationScreen({ route }: { route: any }) {
-  const conversation = conversations.find((item) => item.id === route.params?.id) ?? conversations[0]!;
-  const product = products.find((item) => item.id === conversation.productId)!;
-  const [messages, setMessages] = React.useState(["Hi, is this still available?", conversation.lastMessage]);
+  const productId: string | undefined = route.params?.productId;
+  const [conversationId, setConversationId] = React.useState<string | undefined>(route.params?.id);
   const [draft, setDraft] = React.useState("");
-  return <ScreenContainer scroll={false} contentStyle={styles.conversationScreen}><View style={styles.productBar}><Image source={{ uri: product.image }} style={styles.productImage}/><View style={styles.flex}><Text numberOfLines={1} style={styles.productTitle}>{product.title}</Text><Text style={styles.productPrice}>LKR {product.price.toLocaleString()}</Text></View><AppIcon name="chevron-forward" size={18} color={colors.textSecondary}/></View><View style={styles.bubbles}><Text style={styles.safety}>Keep communication in AgainBuy and inspect before paying.</Text>{messages.map((message, index) => <MessageBubble key={`${message}-${index}`} text={message} mine={index % 2 === 0} time={index % 2 === 0 ? "9:36 AM" : "9:42 AM"}/>)}</View><View style={styles.composer}><TextInput value={draft} onChangeText={setDraft} placeholder="Write a message…" placeholderTextColor={colors.textSecondary} style={styles.input}/><Pressable accessibilityRole="button" accessibilityLabel="Send message" onPress={() => { if (draft.trim()) { setMessages((items) => [...items, draft.trim()]); setDraft(""); } }} style={styles.send}><AppIcon name="send" size={19} color={colors.white}/></Pressable></View></ScreenContainer>;
+  const [sending, setSending] = React.useState(false);
+  const [sendError, setSendError] = React.useState<string | null>(null);
+
+  const { data: detail, error, loading, setData } = useApiData<ConversationDetail | null>(async () => {
+    let id = conversationId;
+    if (!id && productId) id = (await api.conversations()).find((item) => item.productId === productId)?.id;
+    if (!id) return null;
+    if (id !== conversationId) setConversationId(id);
+    return api.conversation(id);
+  }, [conversationId, productId]);
+  const productKey = productId ?? detail?.conversation.productId;
+  const { data: product } = useApiData(async () => productKey ? api.product(productKey) : null, [productKey]);
+
+  const send = async () => {
+    const body = draft.trim();
+    if (!body || sending) return;
+    setSending(true);
+    setSendError(null);
+    try {
+      if (detail) {
+        const message = await api.sendMessage(detail.conversation.id, body);
+        setData({ ...detail, messages: [...detail.messages, message] });
+      } else if (productId) {
+        const started = await api.startConversation(productId, body);
+        setData(started);
+        setConversationId(started.conversation.id);
+      }
+      setDraft("");
+    } catch (caught) {
+      setSendError(errorMessage(caught));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const title = product?.title ?? detail?.conversation.productTitle ?? "";
+  const image = product?.image ?? detail?.conversation.productImage ?? "";
+  if (loading && detail === undefined) return <ScreenContainer><LoadingIndicator/></ScreenContainer>;
+
+  return <ScreenContainer scroll={false} contentStyle={styles.conversationScreen}><View style={styles.productBar}><ProductImage uri={image} style={styles.productImage}/><View style={styles.flex}><Text numberOfLines={1} style={styles.productTitle}>{title}</Text>{product && <Text style={styles.productPrice}>LKR {product.price.toLocaleString()}</Text>}</View><AppIcon name="chevron-forward" size={18} color={colors.textSecondary}/></View><ScrollView style={styles.bubbles}><Text style={styles.safety}>Keep communication in AgainBuy and inspect before paying.</Text>{error && <ErrorMessage message={error}/>}{!detail && !error && <Text style={styles.empty}>Say hello to {product?.seller ?? "the seller"} and ask about the item.</Text>}{detail?.messages.map((message) => <MessageBubble key={message.id} text={message.body} mine={message.isMine} time={messageTime(message.sentAt)}/>)}</ScrollView>{sendError && <ErrorMessage message={sendError}/>}<View style={styles.composer}><TextInput value={draft} onChangeText={setDraft} onSubmitEditing={send} placeholder="Write a message…" placeholderTextColor={colors.textSecondary} style={styles.input}/><Pressable accessibilityRole="button" accessibilityLabel="Send message" disabled={sending} onPress={send} style={[styles.send, sending && styles.sending]}><AppIcon name="send" size={19} color={colors.white}/></Pressable></View></ScreenContainer>;
 }
 
 const styles = StyleSheet.create({
@@ -37,4 +85,6 @@ const styles = StyleSheet.create({
   composer: { flexDirection: "row", gap: spacing.xs, alignItems: "center", paddingVertical: spacing.sm },
   input: { flex: 1, minHeight: 48, borderRadius: radius.full, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, color: colors.charcoal },
   send: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.terracotta, alignItems: "center", justifyContent: "center" },
+  sending: { opacity: 0.6 },
+  empty: { ...typography.body, color: colors.textSecondary, textAlign: "center" },
 });

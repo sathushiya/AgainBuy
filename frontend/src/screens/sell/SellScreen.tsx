@@ -1,12 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { z } from "zod";
 import { AppIcon } from "../../components/AppIcon";
-import { AppTextInput, FilterChip, PrimaryButton, ScreenContainer, SecondaryButton } from "../../components/core";
-import { useApp } from "../../context/AppContext";
-import { categories, products } from "../../data/mockData";
+import { AppTextInput, ErrorMessage, FilterChip, PrimaryButton, ScreenContainer, SecondaryButton } from "../../components/core";
+import { ProductImage } from "../../components/marketplace";
+import { useApiData } from "../../hooks/useApiData";
+import { api, errorMessage } from "../../services/api";
 import { colors, radius, spacing, typography } from "../../theme";
 
 const schema = z.object({
@@ -18,27 +19,37 @@ const schema = z.object({
   usage: z.string().min(2, "Add how long it was used."),
   year: z.string().regex(/^\d{4}$/, "Enter a four-digit year."),
   description: z.string().min(20, "Add at least 20 characters."),
-  defects: z.string().min(2, "Describe defects or write “None”."),
+  defects: z.string().min(2, "Describe defects or write âNoneâ."),
   location: z.string().min(2, "Add a pickup location."),
 });
 
 export function SellScreen({ navigation }: { navigation: any }) {
-  const { publishListing } = useApp();
+  const { data: categories = [] } = useApiData(() => api.categories());
+  const [publishing, setPublishing] = React.useState(false);
+  const [publishError, setPublishError] = React.useState<string | null>(null);
   const [step, setStep] = React.useState<"form" | "preview" | "success">("form");
   const [category, setCategory] = React.useState("Electronics");
   const [condition, setCondition] = React.useState<"Like new" | "Excellent" | "Good" | "Fair">("Good");
   const { control, handleSubmit, getValues, formState: { errors, isValid } } = useForm({ resolver: zodResolver(schema), mode: "onChange", defaultValues: { title: "", price: "", originalPrice: "", brand: "", model: "", usage: "", year: "2023", description: "", defects: "None", location: "Colombo" } });
-  const publish = () => {
+  const publish = async () => {
     const values = getValues();
-    publishListing({ ...products[4]!, id: `mine_${Date.now()}`, title: values.title, category, price: Number(values.price), originalPrice: Number(values.originalPrice) || undefined, condition, usage: values.usage, purchaseYear: Number(values.year), location: values.location, brand: values.brand, model: values.model, description: values.description, defects: values.defects, seller: "Maya Perera", listedAt: "Just now", status: "Active" });
-    setStep("success");
+    setPublishing(true);
+    setPublishError(null);
+    try {
+      await api.createListing({ title: values.title, category, price: Number(values.price), originalPrice: Number(values.originalPrice) || undefined, condition, usage: values.usage, purchaseYear: Number(values.year), location: values.location, brand: values.brand, model: values.model, description: values.description, defects: values.defects });
+      setStep("success");
+    } catch (caught) {
+      setPublishError(errorMessage(caught));
+    } finally {
+      setPublishing(false);
+    }
   };
-  if (step === "success") return <ScreenContainer contentStyle={styles.successScreen}><View style={styles.successIcon}><AppIcon name="leaf" size={42} color={colors.white}/></View><Text style={styles.successTitle}>Your item has a new chance.</Text><Text style={styles.successText}>The listing was published locally in demo mode. No production marketplace record was created.</Text><PrimaryButton title="View my listings" onPress={() => navigation.navigate("MyListings")} style={styles.full}/><SecondaryButton title="Sell another item" onPress={() => setStep("form")} style={styles.full}/></ScreenContainer>;
+  if (step === "success") return <ScreenContainer contentStyle={styles.successScreen}><View style={styles.successIcon}><AppIcon name="leaf" size={42} color={colors.white}/></View><Text style={styles.successTitle}>Your item has a new chance.</Text><Text style={styles.successText}>Your listing is live on AgainBuy. Buyers can now find it, save it, and message you.</Text><PrimaryButton title="View my listings" onPress={() => navigation.navigate("MyListings")} style={styles.full}/><SecondaryButton title="Sell another item" onPress={() => setStep("form")} style={styles.full}/></ScreenContainer>;
   if (step === "preview") {
     const values = getValues();
-    return <ScreenContainer><Text style={styles.eyebrow}>LISTING PREVIEW</Text><Text style={styles.title}>Check every detail.</Text><Image source={{ uri: products[4]!.image }} style={styles.previewImage}/><Text style={styles.previewTitle}>{values.title}</Text><Text style={styles.previewPrice}>LKR {Number(values.price).toLocaleString()}</Text><Text style={styles.previewMeta}>{condition} · {values.usage} · {values.location}</Text><View style={styles.previewSection}><Text style={styles.label}>Description</Text><Text style={styles.previewBody}>{values.description}</Text></View><View style={styles.previewSection}><Text style={styles.label}>Known defects</Text><Text style={styles.previewBody}>{values.defects}</Text></View><View style={styles.actions}><SecondaryButton title="Edit" onPress={() => setStep("form")} style={styles.flex}/><PrimaryButton title="Publish listing" onPress={publish} style={styles.flex}/></View><Text style={styles.note}>Publication is simulated and remains only in local app state.</Text></ScreenContainer>;
+    return <ScreenContainer><Text style={styles.eyebrow}>LISTING PREVIEW</Text><Text style={styles.title}>Check every detail.</Text><ProductImage uri="" style={styles.previewImage} label="No photo yet"/><Text style={styles.previewTitle}>{values.title}</Text><Text style={styles.previewPrice}>LKR {Number(values.price).toLocaleString()}</Text><Text style={styles.previewMeta}>{condition} Â· {values.usage} Â· {values.location}</Text><View style={styles.previewSection}><Text style={styles.label}>Description</Text><Text style={styles.previewBody}>{values.description}</Text></View><View style={styles.previewSection}><Text style={styles.label}>Known defects</Text><Text style={styles.previewBody}>{values.defects}</Text></View><View style={styles.actions}><SecondaryButton title="Edit" onPress={() => setStep("form")} style={styles.flex}/><PrimaryButton title="Publish listing" loading={publishing} onPress={publish} style={styles.flex}/></View>{publishError && <ErrorMessage message={publishError}/>}<Text style={styles.note}>Photo upload isn’t available yet; your listing will show a placeholder image.</Text></ScreenContainer>;
   }
-  return <ScreenContainer keyboardAware><Text style={styles.eyebrow}>SELL ON AGAINBUY</Text><Text style={styles.title}>Give your item another life.</Text><Text style={styles.subtitle}>Honest details help buyers make confident decisions.</Text><View style={styles.upload}><View style={styles.uploadIcon}><AppIcon name="camera-outline" size={30} color={colors.terracotta}/></View><Text style={styles.uploadTitle}>Add product photos</Text><Text style={styles.uploadText}>Show the front, back, labels, accessories, and any defects.</Text><SecondaryButton title="Choose photos" onPress={() => {}}/></View><Text style={styles.label}>Category</Text><View style={styles.chips}>{categories.slice(1, 6).map((item) => <FilterChip key={item} label={item} selected={category === item} onPress={() => setCategory(item)}/>)}</View><View style={styles.form}><Form control={control} name="title" label="Product title" error={errors.title?.message}/><View style={styles.row}><View style={styles.flex}><Form control={control} name="brand" label="Brand" error={errors.brand?.message}/></View><View style={styles.flex}><Form control={control} name="model" label="Model" error={errors.model?.message}/></View></View><View style={styles.row}><View style={styles.flex}><Form control={control} name="price" label="Selling price (LKR)" keyboardType="numeric" error={errors.price?.message}/></View><View style={styles.flex}><Form control={control} name="originalPrice" label="Original price" keyboardType="numeric" error={errors.originalPrice?.message}/></View></View><Text style={styles.label}>Condition</Text><View style={styles.chips}>{(["Like new","Excellent","Good","Fair"] as const).map((item) => <FilterChip key={item} label={item} selected={condition === item} onPress={() => setCondition(item)}/>)}</View><View style={styles.row}><View style={styles.flex}><Form control={control} name="usage" label="Usage duration" error={errors.usage?.message}/></View><View style={styles.flex}><Form control={control} name="year" label="Purchase year" keyboardType="numeric" error={errors.year?.message}/></View></View><Form control={control} name="description" label="Description" multiline error={errors.description?.message}/><Form control={control} name="defects" label="Known defects or missing accessories" multiline error={errors.defects?.message}/><Form control={control} name="location" label="Pickup location" error={errors.location?.message}/><Pressable style={styles.proof}><AppIcon name="receipt-outline" size={22} color={colors.terracotta}/><View style={styles.flex}><Text style={styles.proofTitle}>Add proof of purchase</Text><Text style={styles.uploadText}>Optional · Hide personal payment details</Text></View><AppIcon name="add" size={20} color={colors.terracotta}/></Pressable><PrimaryButton title="Preview listing" disabled={!isValid} onPress={handleSubmit(() => setStep("preview"))}/></View></ScreenContainer>;
+  return <ScreenContainer keyboardAware><Text style={styles.eyebrow}>SELL ON AGAINBUY</Text><Text style={styles.title}>Give your item another life.</Text><Text style={styles.subtitle}>Honest details help buyers make confident decisions.</Text><View style={styles.upload}><View style={styles.uploadIcon}><AppIcon name="camera-outline" size={30} color={colors.terracotta}/></View><Text style={styles.uploadTitle}>Add product photos</Text><Text style={styles.uploadText}>Show the front, back, labels, accessories, and any defects.</Text><SecondaryButton title="Choose photos" onPress={() => {}}/></View><Text style={styles.label}>Category</Text><View style={styles.chips}>{categories.map(({ name: item }) => <FilterChip key={item} label={item} selected={category === item} onPress={() => setCategory(item)}/>)}</View><View style={styles.form}><Form control={control} name="title" label="Product title" error={errors.title?.message}/><View style={styles.row}><View style={styles.flex}><Form control={control} name="brand" label="Brand" error={errors.brand?.message}/></View><View style={styles.flex}><Form control={control} name="model" label="Model" error={errors.model?.message}/></View></View><View style={styles.row}><View style={styles.flex}><Form control={control} name="price" label="Selling price (LKR)" keyboardType="numeric" error={errors.price?.message}/></View><View style={styles.flex}><Form control={control} name="originalPrice" label="Original price" keyboardType="numeric" error={errors.originalPrice?.message}/></View></View><Text style={styles.label}>Condition</Text><View style={styles.chips}>{(["Like new","Excellent","Good","Fair"] as const).map((item) => <FilterChip key={item} label={item} selected={condition === item} onPress={() => setCondition(item)}/>)}</View><View style={styles.row}><View style={styles.flex}><Form control={control} name="usage" label="Usage duration" error={errors.usage?.message}/></View><View style={styles.flex}><Form control={control} name="year" label="Purchase year" keyboardType="numeric" error={errors.year?.message}/></View></View><Form control={control} name="description" label="Description" multiline error={errors.description?.message}/><Form control={control} name="defects" label="Known defects or missing accessories" multiline error={errors.defects?.message}/><Form control={control} name="location" label="Pickup location" error={errors.location?.message}/><Pressable style={styles.proof}><AppIcon name="receipt-outline" size={22} color={colors.terracotta}/><View style={styles.flex}><Text style={styles.proofTitle}>Add proof of purchase</Text><Text style={styles.uploadText}>Optional Â· Hide personal payment details</Text></View><AppIcon name="add" size={20} color={colors.terracotta}/></Pressable><PrimaryButton title="Preview listing" disabled={!isValid} onPress={handleSubmit(() => setStep("preview"))}/></View></ScreenContainer>;
 }
 
 function Form({ control, name, label, error, ...props }: any) {

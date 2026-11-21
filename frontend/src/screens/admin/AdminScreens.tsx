@@ -1,42 +1,90 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { AppHeader, ConfirmDialog, EmptyState, ScreenContainer, SearchBar, SectionHeader, StatusBadge } from "../../components/core";
+import { AppHeader, ConfirmDialog, EmptyState, ErrorMessage, LoadingIndicator, ScreenContainer, SearchBar, SectionHeader, StatusBadge } from "../../components/core";
 import { AppIcon } from "../../components/AppIcon";
 import { DashboardStatCard, FacilityCard, UserManagementCard } from "../../components/roles";
 import { useApp } from "../../context/AppContext";
-import { products } from "../../data/mockData";
-import { facilities, moderationQueue, platformUsers } from "../../data/mockOperations";
+import { useApiData } from "../../hooks/useApiData";
+import { api, errorMessage } from "../../services/api";
 import { colors, radius, spacing, typography } from "../../theme";
+import { AdminStats, ModerationCase, PlatformUser } from "../../types";
+import { formatMonth, timeAgo } from "../../utils/format";
 
 export function AdminDashboard({ navigation }: { navigation: any }) {
   const { user, hasPermission } = useApp();
-  if (!hasPermission("platform.analytics")) return <Restricted/>;
-  const customers = platformUsers.filter((item) => item.role === "customer").length;
-  return <ScreenContainer><AppHeader title="Administration overview" subtitle={`Signed in as ${user?.name}`} onNotifications={() => navigation.navigate("Moderation")}/><View style={styles.warning}><AppIcon name="shield-outline" size={20} color={colors.warning}/><Text style={styles.warningText}>Development administration · Actions are simulated and affect no production records.</Text></View><View style={styles.stats}><DashboardStatCard label="Total users" value="1,284" icon="users-outline"/><DashboardStatCard label="Active customers" value={customers} icon="person-outline" tone="green"/><DashboardStatCard label="Facilities" value={facilities.length} icon="business-outline"/><DashboardStatCard label="Active listings" value={products.filter((item) => item.status === "Active").length} icon="cube-outline" tone="green"/><DashboardStatCard label="Pending reviews" value={moderationQueue.length} icon="file-warning-outline" tone="warning" helper="Needs attention"/><DashboardStatCard label="Reports & flags" value={2} icon="alert-circle-outline" tone="error"/></View><SectionHeader title="Platform management"/><View style={styles.quickGrid}><QuickAction label="Users & roles" icon="users-outline" onPress={() => navigation.navigate("Users")}/><QuickAction label="Facilities" icon="business-outline" onPress={() => navigation.navigate("Facilities")}/><QuickAction label="Categories" icon="tags-outline" onPress={() => navigation.navigate("RoleSettings")}/><QuickAction label="Moderation" icon="file-warning-outline" onPress={() => navigation.navigate("Moderation")}/></View><SectionHeader title="Recent platform activity"/>{["Facility record updated","Electronics category policy updated","Reported listing moved to evidence review"].map((item, index) => <View key={item} style={styles.activity}><View style={styles.number}><Text style={styles.numberText}>{index + 1}</Text></View><View style={styles.flex}><Text style={styles.activityTitle}>{item}</Text><Text style={styles.meta}>{index === 0 ? "12 min ago" : index === 1 ? "2 hr ago" : "Yesterday"}</Text></View><AppIcon name="chevron-forward" size={18} color={colors.textSecondary}/></View>)}</ScreenContainer>;
+  const allowed = hasPermission("platform.analytics");
+  const { data: stats, error, loading } = useApiData(async () => allowed ? api.adminStats() : null, [allowed]);
+  if (!allowed) return <Restricted/>;
+  const value = (pick: (s: AdminStats) => number) => stats ? pick(stats).toLocaleString() : "–";
+  return <ScreenContainer><AppHeader title="Administration overview" subtitle={`Signed in as ${user?.name}`} onNotifications={() => navigation.navigate("Moderation")}/>{error && <ErrorMessage message={error}/>}<View style={styles.stats}><DashboardStatCard label="Total users" value={value((s) => s.totalUsers)} icon="users-outline"/><DashboardStatCard label="Active customers" value={value((s) => s.activeCustomers)} icon="person-outline" tone="green"/><DashboardStatCard label="Facilities" value={value((s) => s.facilities)} icon="business-outline"/><DashboardStatCard label="Active listings" value={value((s) => s.activeListings)} icon="cube-outline" tone="green"/><DashboardStatCard label="Pending reviews" value={value((s) => s.pendingReviews)} icon="file-warning-outline" tone="warning" helper="Needs attention"/><DashboardStatCard label="Reports & flags" value={value((s) => s.reportsAndFlags)} icon="alert-circle-outline" tone="error"/></View><SectionHeader title="Platform management"/><View style={styles.quickGrid}><QuickAction label="Users & roles" icon="users-outline" onPress={() => navigation.navigate("Users")}/><QuickAction label="Facilities" icon="business-outline" onPress={() => navigation.navigate("Facilities")}/><QuickAction label="Categories" icon="tags-outline" onPress={() => navigation.navigate("RoleSettings")}/><QuickAction label="Moderation" icon="file-warning-outline" onPress={() => navigation.navigate("Moderation")}/></View><SectionHeader title="Recent platform activity"/>{loading && !stats && <LoadingIndicator/>}{stats?.recentActivity.length === 0 && <Text style={styles.meta}>No activity yet.</Text>}{stats?.recentActivity.map((item, index) => <View key={`${item.at}-${index}`} style={styles.activity}><View style={styles.number}><Text style={styles.numberText}>{index + 1}</Text></View><View style={styles.flex}><Text style={styles.activityTitle}>{item.description}</Text><Text style={styles.meta}>{timeAgo(item.at)}</Text></View></View>)}</ScreenContainer>;
 }
 
 export function UserManagementScreen() {
-  const { hasPermission } = useApp();
+  const { user: me, hasPermission } = useApp();
+  const allowed = hasPermission("platform.user_manage");
   const [query, setQuery] = React.useState("");
-  const [action, setAction] = React.useState<{ name: string; type: "role" | "deactivate" } | null>(null);
-  const [notice, setNotice] = React.useState("");
-  if (!hasPermission("platform.user_manage")) return <Restricted/>;
-  const shown = platformUsers.filter((item) => item.name.toLowerCase().includes(query.toLowerCase()) || item.email.includes(query.toLowerCase()));
-  return <ScreenContainer><Text style={styles.title}>User Management</Text><Text style={styles.subtitle}>Search accounts and demonstrate authorised role actions.</Text><SearchBar value={query} onChangeText={setQuery} placeholder="Search name or email"/>{notice && <View style={styles.notice}><Text style={styles.noticeText}>{notice}</Text></View>}<View style={styles.list}>{shown.map((item) => <View key={item.id}><UserManagementCard user={item}/><View style={styles.userActions}><Pressable onPress={() => setAction({ name: item.name, type: "role" })}><Text style={styles.textAction}>Change role</Text></Pressable><Pressable onPress={() => setAction({ name: item.name, type: "deactivate" })}><Text style={styles.dangerAction}>Deactivate</Text></Pressable></View></View>)}</View><ConfirmDialog visible={action !== null} destructive={action?.type === "deactivate"} title={action?.type === "role" ? `Change ${action.name}'s role?` : `Deactivate ${action?.name}?`} message="This is a mock administrative action. Passwords and sensitive account details are never displayed." confirmLabel={action?.type === "role" ? "Apply mock role" : "Deactivate account"} onCancel={() => setAction(null)} onConfirm={() => { setNotice(`${action?.type === "role" ? "Role update" : "Deactivation"} simulated for ${action?.name}.`); setAction(null); }}/></ScreenContainer>;
+  const [search, setSearch] = React.useState("");
+  const [action, setAction] = React.useState<{ user: PlatformUser; type: "role" | "status" } | null>(null);
+  const [notice, setNotice] = React.useState<{ ok: boolean; text: string } | null>(null);
+  React.useEffect(() => {
+    const timer = setTimeout(() => setSearch(query.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+  const { data: users = [], error, loading, setData } = useApiData(async () => allowed ? api.adminUsers(search) : [], [allowed, search]);
+  if (!allowed) return <Restricted/>;
+
+  const apply = async () => {
+    if (!action) return;
+    const { user, type } = action;
+    setAction(null);
+    try {
+      const updated = type === "role"
+        ? await api.setUserRole(user.id, user.role === "admin" ? "customer" : "admin")
+        : await api.setUserStatus(user.id, user.status === "Inactive" ? "Active" : "Inactive");
+      setData(users.map((item) => item.id === updated.id ? updated : item));
+      setNotice({ ok: true, text: type === "role" ? `${updated.name} is now ${updated.role === "admin" ? "an administrator" : "a customer"}.` : `${updated.name}'s account is now ${updated.status.toLowerCase()}.` });
+    } catch (caught) {
+      setNotice({ ok: false, text: errorMessage(caught) });
+    }
+  };
+
+  const target = action?.user;
+  const failure = notice && !notice.ok ? notice.text : error;
+  return <ScreenContainer><Text style={styles.title}>User Management</Text><Text style={styles.subtitle}>Search accounts, change roles, and deactivate access.</Text><SearchBar value={query} onChangeText={setQuery} placeholder="Search name or email"/>{notice?.ok && <View style={styles.notice}><Text style={styles.noticeText}>{notice.text}</Text></View>}{failure && <ErrorMessage message={failure}/>}<View style={styles.list}>{loading && users.length === 0 ? <LoadingIndicator/> : users.length === 0 ? <EmptyState icon="users-outline" title="No users found" message="Try another name or email."/> : users.map((item) => <View key={item.id}><UserManagementCard user={{ ...item, joined: formatMonth(item.joined) }}/>{item.id !== me?.id && <View style={styles.userActions}><Pressable onPress={() => setAction({ user: item, type: "role" })}><Text style={styles.textAction}>{item.role === "admin" ? "Make customer" : "Make admin"}</Text></Pressable><Pressable onPress={() => setAction({ user: item, type: "status" })}><Text style={item.status === "Inactive" ? styles.textAction : styles.dangerAction}>{item.status === "Inactive" ? "Reactivate" : "Deactivate"}</Text></Pressable></View>}</View>)}</View><ConfirmDialog visible={action !== null} destructive={action?.type === "status" && target?.status !== "Inactive"} title={action?.type === "role" ? `Change ${target?.name}'s role?` : `${target?.status === "Inactive" ? "Reactivate" : "Deactivate"} ${target?.name}?`} message={action?.type === "role" ? `${target?.name} will become ${target?.role === "admin" ? "a customer" : "an administrator"} and is signed out of their current session.` : target?.status === "Inactive" ? "They will be able to sign in again." : "They are signed out immediately and can't sign in until reactivated."} confirmLabel={action?.type === "role" ? "Change role" : target?.status === "Inactive" ? "Reactivate account" : "Deactivate account"} onCancel={() => setAction(null)} onConfirm={apply}/></ScreenContainer>;
 }
 
 export function FacilityAdministrationScreen() {
   const { hasPermission } = useApp();
-  if (!hasPermission("platform.facility_manage")) return <Restricted/>;
-  return <ScreenContainer><Text style={styles.title}>Facility Management</Text><Text style={styles.subtitle}>Platform-wide facility records and manager assignments.</Text>{facilities.map((item) => <FacilityCard key={item.id} facility={item}/>) }<View style={styles.warning}><AppIcon name="information-circle-outline" size={20} color={colors.warning}/><Text style={styles.warningText}>Manager reassignment requires verified backend authorization in production.</Text></View></ScreenContainer>;
+  const allowed = hasPermission("platform.facility_manage");
+  const { data: facilities = [], error, loading } = useApiData(async () => allowed ? api.facilities() : [], [allowed]);
+  if (!allowed) return <Restricted/>;
+  return <ScreenContainer><Text style={styles.title}>Facility Management</Text><Text style={styles.subtitle}>Platform-wide facility records and manager assignments.</Text>{error && <ErrorMessage message={error}/>}{loading && facilities.length === 0 ? <LoadingIndicator/> : facilities.map((item) => <FacilityCard key={item.id} facility={item}/>)}</ScreenContainer>;
 }
 
 export function ListingModerationScreen() {
   const { hasPermission } = useApp();
-  const [selected, setSelected] = React.useState<string | null>(null);
-  if (!hasPermission("platform.listing_moderate")) return <Restricted/>;
-  return <ScreenContainer><Text style={styles.title}>Listing Moderation</Text><Text style={styles.subtitle}>Reported listings and flagged platform content.</Text>{moderationQueue.map((item) => <View key={item.id} style={styles.moderation}><View style={styles.between}><Text style={styles.caseId}>{item.id}</Text><StatusBadge status={item.status}/></View><Text style={styles.cardTitle}>{item.title}</Text><Text style={styles.meta}>{item.reason} · Seller: {item.seller}</Text><View style={styles.moderationActions}><Pressable style={styles.review}><Text style={styles.reviewText}>Request evidence</Text></Pressable><Pressable style={styles.remove} onPress={() => setSelected(item.id)}><Text style={styles.removeText}>Remove listing</Text></Pressable></View></View>)}<ConfirmDialog visible={selected !== null} destructive title="Remove this listing?" message="This sensitive moderation action is simulated. No production listing or seller account will change." confirmLabel="Remove listing" onCancel={() => setSelected(null)} onConfirm={() => setSelected(null)}/></ScreenContainer>;
+  const allowed = hasPermission("platform.listing_moderate");
+  const [selected, setSelected] = React.useState<ModerationCase | null>(null);
+  const [actionError, setActionError] = React.useState<string | null>(null);
+  const { data: cases = [], error, loading, setData } = useApiData(async () => allowed ? api.moderation() : [], [allowed]);
+  if (!allowed) return <Restricted/>;
+
+  const run = async (item: ModerationCase, kind: "evidence" | "remove") => {
+    setSelected(null);
+    try {
+      const updated = await (kind === "evidence" ? api.requestEvidence(item.id) : api.removeListing(item.id));
+      // Removed cases are closed and drop out of the open queue.
+      setData(kind === "remove" ? cases.filter((c) => c.id !== item.id) : cases.map((c) => c.id === item.id ? updated : c));
+      setActionError(null);
+    } catch (caught) {
+      setActionError(errorMessage(caught));
+    }
+  };
+
+  const failure = actionError ?? error;
+  return <ScreenContainer><Text style={styles.title}>Listing Moderation</Text><Text style={styles.subtitle}>Reported listings and flagged platform content.</Text>{failure && <ErrorMessage message={failure}/>}{loading && cases.length === 0 ? <LoadingIndicator/> : cases.length === 0 ? <EmptyState icon="shield-outline" title="Queue is clear" message="No open reports right now."/> : cases.map((item) => <View key={item.id} style={styles.moderation}><View style={styles.between}><Text style={styles.caseId}>{item.id}</Text><StatusBadge status={item.status}/></View><Text style={styles.cardTitle}>{item.title}</Text><Text style={styles.meta}>{item.reason} · Seller: {item.seller} · {timeAgo(item.createdAt)}</Text><View style={styles.moderationActions}>{item.status !== "Evidence requested" && <Pressable style={styles.review} onPress={() => run(item, "evidence")}><Text style={styles.reviewText}>Request evidence</Text></Pressable>}<Pressable style={styles.remove} onPress={() => setSelected(item)}><Text style={styles.removeText}>Remove listing</Text></Pressable></View></View>)}<ConfirmDialog visible={selected !== null} destructive title="Remove this listing?" message={selected?.productId ? "The listing is taken off the marketplace and the seller can't relist it." : "This report isn't linked to a live listing; the case will be closed as removed."} confirmLabel="Remove listing" onCancel={() => setSelected(null)} onConfirm={() => { if (selected) void run(selected, "remove"); }}/></ScreenContainer>;
 }
+
 
 function QuickAction({ label, icon, onPress }: { label: string; icon: string; onPress: () => void }) {
   return <Pressable accessibilityRole="button" onPress={onPress} style={styles.quick}><View style={styles.quickIcon}><AppIcon name={icon} size={22} color={colors.terracotta}/></View><Text style={styles.quickLabel}>{label}</Text><AppIcon name="chevron-forward" size={16} color={colors.textSecondary}/></Pressable>;

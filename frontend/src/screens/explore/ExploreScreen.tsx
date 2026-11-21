@@ -1,18 +1,37 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { EmptyState, FilterChip, SearchBar } from "../../components/core";
+import { EmptyState, ErrorMessage, FilterChip, LoadingIndicator, SearchBar } from "../../components/core";
 import { ProductGrid } from "../../components/marketplace";
 import { useApp } from "../../context/AppContext";
-import { categories, products } from "../../data/mockData";
+import { useApiData } from "../../hooks/useApiData";
+import { api } from "../../services/api";
 import { colors, spacing, typography } from "../../theme";
 
 export function ExploreScreen({ navigation, route }: { navigation: any; route: any }) {
   const { wishlist, toggleWishlist } = useApp();
   const [query, setQuery] = React.useState("");
+  const [search, setSearch] = React.useState("");
   const [category, setCategory] = React.useState(route.params?.category ?? "All");
   const [condition, setCondition] = React.useState("Any condition");
-  const filtered = useMemo(() => products.filter((product) => (category === "All" || product.category === category) && (condition === "Any condition" || product.condition === condition) && product.title.toLowerCase().includes(query.toLowerCase())), [query, category, condition]);
-  return <View style={styles.screen}><View style={styles.header}><Text style={styles.title}>Explore</Text><Text style={styles.subtitle}>Search honest listings from local sellers</Text><SearchBar value={query} onChangeText={setQuery} onFilter={() => setCondition((value) => value === "Any condition" ? "Excellent" : "Any condition")}/><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{categories.map((item) => <FilterChip key={item} label={item} selected={category === item} onPress={() => setCategory(item)}/>)}</ScrollView><View style={styles.resultRow}><Text style={styles.results}>{filtered.length} products</Text><FilterChip label={condition} selected={condition !== "Any condition"} onPress={() => setCondition((value) => value === "Any condition" ? "Excellent" : "Any condition")}/></View></View><ProductGrid data={filtered} wishlist={wishlist} onWishlist={toggleWishlist} onProduct={(product) => navigation.navigate("ProductDetail", { id: product.id })} ListEmptyComponent={<EmptyState icon="search-outline" title="No products found" message="Try another search, category, or condition." action="Clear filters" onAction={() => { setQuery(""); setCategory("All"); setCondition("Any condition"); }}/>}/></View>;
+
+  // Categories tapped on Home arrive as a route param.
+  React.useEffect(() => { if (route.params?.category) setCategory(route.params.category); }, [route.params?.category]);
+
+  // Wait for a pause in typing before asking the server.
+  React.useEffect(() => {
+    const timer = setTimeout(() => setSearch(query.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const { data: categories = [] } = useApiData(() => api.categories());
+  const { data, error, loading } = useApiData(
+    () => api.products({ search, category: category === "All" ? undefined : category, condition: condition === "Any condition" ? undefined : condition, pageSize: 50 }),
+    [search, category, condition],
+  );
+  const products = data?.items ?? [];
+  const toggleCondition = () => setCondition((value) => value === "Any condition" ? "Excellent" : "Any condition");
+
+  return <View style={styles.screen}><View style={styles.header}><Text style={styles.title}>Explore</Text><Text style={styles.subtitle}>Search honest listings from local sellers</Text><SearchBar value={query} onChangeText={setQuery} onFilter={toggleCondition}/><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{["All", ...categories.map((item) => item.name)].map((item) => <FilterChip key={item} label={item} selected={category === item} onPress={() => setCategory(item)}/>)}</ScrollView><View style={styles.resultRow}><Text style={styles.results}>{data ? `${data.total} products` : " "}</Text><FilterChip label={condition} selected={condition !== "Any condition"} onPress={toggleCondition}/></View>{error && <ErrorMessage message={error}/>}</View>{loading && !data ? <LoadingIndicator/> : <ProductGrid data={products} wishlist={wishlist} onWishlist={toggleWishlist} onProduct={(product) => navigation.navigate("ProductDetail", { id: product.id })} ListEmptyComponent={<EmptyState icon="search-outline" title="No products found" message="Try another search, category, or condition." action="Clear filters" onAction={() => { setQuery(""); setCategory("All"); setCondition("Any condition"); }}/>}/>}</View>;
 }
 
 const styles = StyleSheet.create({

@@ -23,4 +23,4 @@ pnpm install
 npx expo start
 ```
 
-The mobile app still runs on its local mock data. The API serves the same demo data and accounts.
+The mobile app gets all its data from the API, so start the backend (and its database) before the app. To use a physical phone, see [API address](frontend/README.md#api-address).
