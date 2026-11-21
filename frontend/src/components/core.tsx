@@ -65,6 +65,11 @@ export function EmptyState({ icon = "leaf-outline", title, message, action, onAc
   return <View style={styles.empty}><View style={styles.emptyIcon}><AppIcon name={icon} size={32} color={colors.green}/></View><Text style={styles.emptyTitle}>{title}</Text><Text style={styles.emptyText}>{message}</Text>{action && onAction && <SecondaryButton title={action} onPress={onAction}/>}</View>;
 }
 
+/** Round back arrow for screens that hide the navigation header. */
+export function BackButton({ onPress, label = "Go back" }: { onPress: () => void; label?: string }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} hitSlop={6} onPress={onPress} style={({ pressed }) => [styles.back, pressed && styles.backPressed]}><AppIcon name="arrow-back" size={21} color={colors.charcoal}/></Pressable>;
+}
+
 export function LoadingIndicator({ label = "Loading…" }: { label?: string }) {
   return <View style={styles.loading}><ActivityIndicator size="large" color={colors.terracotta}/><Text style={styles.loadingText}>{label}</Text></View>;
 }
@@ -78,6 +83,8 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, onConfirm
 }
 
 const styles = StyleSheet.create({
+  back: { width: 42, height: 42, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", marginBottom: spacing.md },
+  backPressed: { opacity: 0.8 },
   safe: { flex: 1, backgroundColor: colors.cream },
   flex: { flex: 1 },
   screenContent: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: 110 },
