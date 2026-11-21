@@ -8,7 +8,7 @@ The Figma Make preview runs the **frontend** with `expo start --web` on `$PORT` 
 
 - Preview URL: The user can access the running app through the preview panel
 - Hot reload: Changes to source files are reflected immediately
-- The backend is not part of the preview. Run it with `dotnet run --project backend/AgainBuy.Api` (http://localhost:5080); it needs a PostgreSQL server (see `backend/README.md`).
+- The backend is not part of the preview. Start PostgreSQL with `docker compose -f backend/docker-compose.yml up -d`, then run `dotnet run --project backend/AgainBuy.Api` (http://localhost:5080).
 
 ## Project Structure
 
@@ -34,7 +34,7 @@ Root: `.mise.toml` - Node.js and pnpm versions; `.figma/make/` - Figma Make scri
 ## Dependencies
 
 - Frontend: Expo SDK 54, React Native 0.81, React 19, React Navigation, React Hook Form + Zod, `react-native-svg`. Styling uses React Native `StyleSheet`, not Tailwind.
-- Backend: .NET 10, ASP.NET Core, EF Core + PostgreSQL (Npgsql), JWT bearer auth, xUnit.
+- Backend: .NET 10, ASP.NET Core, EF Core + PostgreSQL (Npgsql, migrations in `Data/Migrations`), JWT bearer auth, xUnit. PostgreSQL runs from `backend/docker-compose.yml`.
 
 ## Code quality
 
