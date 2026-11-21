@@ -12,8 +12,9 @@ A second-hand marketplace for buying and selling pre-owned products.
 ## Quick start
 
 ```bash
-# API on http://localhost:5080 (needs a PostgreSQL server, see backend/README.md)
+# API on http://localhost:5080 (needs Docker Desktop running)
 cd backend
+docker compose up -d
 dotnet run --project AgainBuy.Api
 
 # Mobile app
