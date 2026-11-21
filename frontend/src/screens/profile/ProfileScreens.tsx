@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { AppIcon } from "../../components/AppIcon";
-import { EmptyState, ErrorMessage, LoadingIndicator, ScreenContainer, SectionHeader, StatusBadge } from "../../components/core";
+import { BackButton, EmptyState, ErrorMessage, LoadingIndicator, ScreenContainer, SectionHeader, StatusBadge } from "../../components/core";
 import { ProductCard, ProductGrid } from "../../components/marketplace";
 import { useApp } from "../../context/AppContext";
 import { useApiData } from "../../hooks/useApiData";
@@ -13,7 +13,7 @@ export function WishlistScreen({ navigation }: { navigation: any }) {
   const { data = [], error, loading } = useApiData(() => api.wishlist());
   // Hide items un-hearted on this screen without waiting for a reload.
   const items = data.filter((item) => wishlist.includes(item.id));
-  return <View style={styles.listScreen}><View style={styles.listHeader}><Text style={styles.pageTitle}>Wishlist</Text><Text style={styles.meta}>Saved products to revisit later</Text>{error && <ErrorMessage message={error}/>}</View>{loading && data.length === 0 ? <LoadingIndicator/> : <ProductGrid data={items} wishlist={wishlist} onWishlist={toggleWishlist} onProduct={(item) => navigation.navigate("ProductDetail", { id: item.id })} ListEmptyComponent={<EmptyState icon="heart-outline" title="Your wishlist is empty" message="Save products you want to compare or revisit." action="Explore products" onAction={() => navigation.navigate("CustomerTabs", { screen: "Explore" })}/>}/>}</View>;
+  return <View style={styles.listScreen}><View style={styles.listHeader}><BackButton onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate("CustomerTabs", { screen: "Home" })}/><Text style={styles.pageTitle}>Wishlist</Text><Text style={styles.meta}>Saved products to revisit later</Text>{error && <ErrorMessage message={error}/>}</View>{loading && data.length === 0 ? <LoadingIndicator/> : <ProductGrid data={items} wishlist={wishlist} onWishlist={toggleWishlist} onProduct={(item) => navigation.navigate("ProductDetail", { id: item.id })} ListEmptyComponent={<EmptyState icon="heart-outline" title="Your wishlist is empty" message="Save products you want to compare or revisit." action="Explore products" onAction={() => navigation.navigate("CustomerTabs", { screen: "Explore" })}/>}/>}</View>;
 }
 
 export function MyListingsScreen({ navigation }: { navigation: any }) {
