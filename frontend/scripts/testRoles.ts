@@ -1,10 +1,11 @@
+// Signs in through the real API: start the backend first (see backend/README.md).
 import { canAccess } from "../src/config/permissions";
 import { demoUsers } from "../src/data/demoUsers";
 import { authService } from "../src/services/authService";
 
 async function run() {
   for (const account of demoUsers) {
-    const user = await authService.signIn(account.email, account.password);
+    const { user } = await authService.signIn(account.email, account.password);
     if (user.role !== account.role) throw new Error(`Role mismatch for ${account.email}`);
     console.log(`PASS ${account.role}: ${account.email}`);
   }
