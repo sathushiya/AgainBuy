@@ -2,22 +2,25 @@
 
 ASP.NET Core Web API for the AgainBuy marketplace: authentication, listings, wishlist, messaging, purchases and platform administration.
 
-- .NET 10, controllers, EF Core with **PostgreSQL** (Npgsql)
+- .NET 10, controllers, EF Core with **PostgreSQL** (Npgsql) and EF Core migrations
 - JWT bearer auth; passwords hashed with ASP.NET Core Identity's `PasswordHasher` (PBKDF2)
 - Permission-based authorization that mirrors `frontend/src/config/permissions.ts`
 - JSON shapes and enum strings match `frontend/src/types/index.ts` (e.g. `"Like new"`, `"Meetup scheduled"`, `"customer"`)
 
 ## Run
 
-Needs the .NET 10 SDK and a PostgreSQL server. The Development connection string in `AgainBuy.Api/appsettings.Development.json` expects database `againbuy`, user `againbuy`, password `againbuy_dev` on `localhost:5432`.
+Needs Docker Desktop running (for PostgreSQL) and the .NET 10 SDK.
 
 ```bash
 cd backend
+docker compose up -d                   # PostgreSQL 17 on localhost:5432
 dotnet run --project AgainBuy.Api      # http://localhost:5080
-dotnet test                            # integration tests (need the PostgreSQL server)
+dotnet test                            # integration tests (also need the database container)
 ```
 
-On startup the API creates the database schema if it doesn't exist. In Development it then seeds the same demo data the app uses, but only if the database is empty. Each test creates its own temporary `againbuy_test_*` database and drops it afterwards; set `AGAINBUY_TEST_DB` to use a different server. The OpenAPI document is served at `/openapi/v1.json`, and `AgainBuy.Api/AgainBuy.Api.http` has sample requests.
+On startup the API applies any pending migrations. In Development it then seeds the same demo data the app uses, but only if the database is empty. To reset everything, run `docker compose down -v` (this deletes the data volume) and then `docker compose up -d`. Each test creates its own temporary `againbuy_test_*` database and drops it afterwards; set `AGAINBUY_TEST_DB` to use a different server. The OpenAPI document is served at `/openapi/v1.json`, and `AgainBuy.Api/AgainBuy.Api.http` has sample requests.
+
+To inspect the data: `docker exec -it againbuy-postgres psql -U againbuy -d againbuy`, or connect any PostgreSQL client (pgAdmin, DBeaver) to `localhost:5432`, database `againbuy`, user `againbuy`, password `againbuy_dev`.
 
 | Role | Email | Password |
 |---|---|---|
@@ -103,8 +106,9 @@ AgainBuy.Api/
   Auth/                 permissions map, JWT options and token issuing
   Controllers/          Auth, Products, Wishlist, Conversations, Transactions, Categories, Admin
   Contracts/            request/response records and entity → DTO mapping
-  Data/                 AppDbContext and demo seed data
+  Data/                 AppDbContext, demo seed data, Migrations/
   Domain/               entities and enums
   Infrastructure/       small helpers (ids, enum parsing, rate-limit names)
+docker-compose.yml      local PostgreSQL
 AgainBuy.Api.Tests/     xUnit integration tests (WebApplicationFactory, throwaway PostgreSQL database per test)
 ```
