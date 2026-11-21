@@ -79,9 +79,9 @@ public class ConversationsController(AppDbContext db, TimeProvider time) : Contr
 
     private Message NewMessage(string conversationId, User sender, string body)
     {
-        var now = time.GetUtcNow().UtcDateTime;
-        // A sender has obviously read everything up to their own message.
-        return new Message { ConversationId = conversationId, SenderId = sender.Id, SenderName = sender.Name, Body = body.Trim(), SentAt = now, ReadAt = now };
+        // ReadAt records when the *recipient* read it, so a new message starts unread.
+        // The sender's own messages never count as unread for them (see Summaries).
+        return new Message { ConversationId = conversationId, SenderId = sender.Id, SenderName = sender.Name, Body = body.Trim(), SentAt = time.GetUtcNow().UtcDateTime };
     }
 
     private Task<bool> IsParticipant(string conversationId, string userId, CancellationToken cancellationToken) =>
