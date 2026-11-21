@@ -3,6 +3,7 @@ using System.Threading.RateLimiting;
 using AgainBuy.Api.Auth;
 using AgainBuy.Api.Data;
 using AgainBuy.Api.Domain;
+using AgainBuy.Api.Images;
 using AgainBuy.Api.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -16,6 +17,11 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddSingleton<TokenService>();
+
+// Listing photos go to Cloudinary. Without credentials the API still runs;
+// only the upload endpoint answers 503.
+builder.Services.Configure<CloudinaryOptions>(builder.Configuration.GetSection(CloudinaryOptions.Section));
+builder.Services.AddSingleton<IImageStorage, CloudinaryImageStorage>();
 
 builder.Services.AddOptions<JwtOptions>()
     .Bind(builder.Configuration.GetSection(JwtOptions.Section))
@@ -70,6 +76,12 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy(RateLimitPolicies.Auth, context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = permitPerMinute, Window = TimeSpan.FromMinutes(1) }));
+
+    // Per signed-in user, to protect the Cloudinary quota.
+    var uploadsPerMinute = builder.Configuration.GetValue("RateLimiting:UploadsPerMinute", 30);
+    options.AddPolicy(RateLimitPolicies.Uploads, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(AppClaims.Subject)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = uploadsPerMinute, Window = TimeSpan.FromMinutes(1) }));
 });
 
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy

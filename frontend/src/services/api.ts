@@ -25,7 +25,7 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
 
 type Query = Record<string, string | number | boolean | undefined | null>;
 
-async function request<T>(method: string, path: string, options: { body?: unknown; query?: Query } = {}): Promise<T> {
+async function request<T>(method: string, path: string, options: { body?: unknown; form?: FormData; query?: Query } = {}): Promise<T> {
   // Built by hand: React Native's URLSearchParams polyfill is incomplete on some versions.
   const search = Object.entries(options.query ?? {})
     .filter(([, value]) => value !== undefined && value !== null && value !== "")
@@ -39,10 +39,11 @@ async function request<T>(method: string, path: string, options: { body?: unknow
       method,
       headers: {
         Accept: "application/json",
+        // Multipart bodies get their Content-Type (with boundary) from fetch itself.
         ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body: options.form ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
     });
   } catch {
     throw new ApiError(`Can't reach the AgainBuy server at ${API_URL}. Check that the backend is running.`, 0);
@@ -87,6 +88,15 @@ export const api = {
   createListing: (input: ListingInput) => request<Product>("POST", "/api/products", { body: input }),
   deactivateListing: (id: string) => request<Product>("POST", `/api/products/${encodeURIComponent(id)}/deactivate`),
   activateListing: (id: string) => request<Product>("POST", `/api/products/${encodeURIComponent(id)}/activate`),
+
+  /** Uploads one listing photo to Cloudinary via the API. Native passes a file URI; web passes a Blob. */
+  uploadImage: (file: { uri: string; name: string; type: string } | { webFile: Blob; name: string }) => {
+    const form = new FormData();
+    if ("webFile" in file) form.append("file", file.webFile, file.name);
+    // React Native's FormData accepts { uri, name, type } for local files.
+    else form.append("file", file as unknown as Blob);
+    return request<{ url: string; width: number; height: number }>("POST", "/api/uploads/images", { form });
+  },
 
   // Wishlist
   wishlist: () => request<Product[]>("GET", "/api/wishlist"),

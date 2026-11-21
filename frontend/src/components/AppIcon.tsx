@@ -48,6 +48,7 @@ import {
   Users,
   Warehouse,
   Wrench,
+  X,
   type LucideIcon,
 } from "lucide-react-native";
 
@@ -65,6 +66,7 @@ const iconMap: Record<string, LucideIcon> = {
   "checkmark-circle": CheckCircle2,
   "checkmark-circle-outline": CheckCircle2,
   "chevron-forward": ChevronRight,
+  close: X,
   "chevron-down": ChevronDown,
   "chevron-up": ChevronUp,
   "football-outline": Dumbbell,

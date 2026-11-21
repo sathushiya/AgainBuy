@@ -73,7 +73,7 @@ Permissions are centralized in `src/config/permissions.ts`. The API enforces the
 - Search and filtering by category and condition
 - Product details with prices, usage, year, condition, defects, accessories, seller, and location
 - Wishlist saved to your account
-- Sell-an-item form with Zod validation, preview, and publishing to the API
+- Sell-an-item form with up to 8 photos (resized, then uploaded to Cloudinary through the API), Zod validation, preview, and publishing
 - My Listings with deactivation and reactivation
 - Messaging with sellers, unread counts, and new conversations from product pages
 - Reserving items, plus purchase and sales history with complete/cancel
@@ -95,6 +95,6 @@ Brand colors are centralized in `src/theme/index.ts`.
 ## Current limitations
 
 - Purchases reserve the item and schedule a meetup; no money is processed.
-- Photo upload is not built yet; new listings show a placeholder image.
+- Photo upload needs Cloudinary credentials on the backend (see `../backend/README.md`). Without them, "Choose photos" shows an error and listings use a placeholder image.
 - Sessions are not saved, so restarting the app signs you out.
 - Seeded product images and marketplace data are samples.
