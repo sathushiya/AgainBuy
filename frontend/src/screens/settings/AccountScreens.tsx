@@ -111,6 +111,38 @@ export function NotificationPreferencesScreen() {
   return <ScreenContainer>{(error || saveError) && <ErrorMessage message={(saveError ?? error)!}/>}{loading && !settings ? <LoadingIndicator/> : settings && NOTIFICATION_OPTIONS.map((option) => <View key={option.key} style={styles.toggleRow}><View style={styles.flex}><Text style={styles.infoTitle}>{option.title}</Text><Text style={styles.hint}>{option.text}</Text></View><Switch accessibilityLabel={option.title} value={settings[option.key]} onValueChange={(value) => toggle(option.key, value)} trackColor={{ false: colors.border, true: colors.terracotta }} thumbColor={colors.white}/></View>)}<Text style={styles.footnote}>Message alerts apply right away. Your other choices are saved to your account and used when AgainBuy sends purchase updates and news.</Text></ScreenContainer>;
 }
 
+const MAX_LOCATIONS = 10;
+
+export function SavedLocationsScreen() {
+  const { data: settings, error, loading, setData } = useApiData(() => api.accountSettings());
+  const [draft, setDraft] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
+  const locations = settings?.savedLocations ?? [];
+
+  const save = async (next: string[]) => {
+    if (!settings) return false;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      setData(await api.updateAccountSettings({ ...settings, savedLocations: next }));
+      return true;
+    } catch (caught) {
+      setSaveError(errorMessage(caught));
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const place = draft.trim();
+  const duplicate = locations.some((location) => location.toLowerCase() === place.toLowerCase());
+  const draftError = place && place.length < 2 ? "Enter at least 2 characters." : duplicate ? "You already saved this location." : undefined;
+  const add = async () => { if (await save([...locations, place])) setDraft(""); };
+
+  return <ScreenContainer keyboardAware><Text style={styles.hint}>Save the places you usually meet buyers. Your default is filled in automatically when you sell an item.</Text>{(error || saveError) && <ErrorMessage message={(saveError ?? error)!}/>}{loading && !settings ? <LoadingIndicator/> : <View style={styles.locationList}>{locations.length === 0 ? <Text style={styles.empty}>No saved locations yet.</Text> : locations.map((location, index) => <View key={location} style={styles.locationRow}><AppIcon name="location-outline" size={20} color={colors.terracotta}/><View style={styles.flex}><Text style={styles.infoTitle}>{location}</Text>{index === 0 && <Text style={styles.defaultTag}>Default</Text>}</View>{index > 0 && <SecondaryButton title="Make default" onPress={saving ? () => {} : () => save([location, ...locations.filter((item) => item !== location)])} style={styles.smallButton}/>}<SecondaryButton title="Remove" destructive onPress={saving ? () => {} : () => save(locations.filter((item) => item !== location))} style={styles.smallButton}/></View>)}</View>}{locations.length < MAX_LOCATIONS ? <View style={styles.form}><AppTextInput label="Add a location" value={draft} onChangeText={setDraft} placeholder="e.g. Colombo 05, Liberty Plaza" error={draftError}/><PrimaryButton title="Add location" disabled={!place || !!draftError || !settings} loading={saving} onPress={add}/></View> : <Text style={styles.footnote}>You can save up to {MAX_LOCATIONS} locations. Remove one to add another.</Text>}</ScreenContainer>;
+}
+
 function InfoCard({ icon, title, text }: { icon: string; title: string; text: string }) {
   return <View style={styles.infoCard}><AppIcon name={icon} size={22} color={colors.green}/><View style={styles.flex}><Text style={styles.infoTitle}>{title}</Text><Text style={styles.hint}>{text}</Text></View></View>;
 }
@@ -133,4 +165,9 @@ const styles = StyleSheet.create({
   infoTitle: { ...typography.medium, color: colors.charcoal },
   toggleRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
   footnote: { ...typography.label, color: colors.textSecondary, marginTop: spacing.sm },
+  locationList: { marginTop: spacing.md, gap: spacing.sm },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.sm },
+  defaultTag: { ...typography.label, color: colors.green, marginTop: 2 },
+  smallButton: { minHeight: 36, paddingHorizontal: spacing.sm },
+  empty: { ...typography.body, color: colors.textSecondary },
 });
