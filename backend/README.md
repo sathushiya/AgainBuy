@@ -108,6 +108,12 @@ All routes are under `/api`. A 🔒 means a bearer token is required; the policy
 | POST | `/transactions` `{ productId }` | 🔒 `transaction.view_own`; reserves the item |
 | POST | `/transactions/{id}/complete`, `/transactions/{id}/cancel` | 🔒 `transaction.view_own` |
 
+**Support** (any signed-in user)
+| Method | Route | Access |
+|---|---|---|
+| POST | `/support/tickets` `{ type: "problem" | "contact", subject, message }` | 🔒 any role |
+| GET | `/support/tickets` | 🔒 any role; your own requests only |
+
 **Administration** (admin)
 | Method | Route | Access |
 |---|---|---|

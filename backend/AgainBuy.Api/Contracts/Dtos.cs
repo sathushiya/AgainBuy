@@ -91,6 +91,13 @@ public record UpsertFacilityRequest(
     [Range(0, 100_000)] int ActiveBookings,
     [Required] FacilityStatus? Status);
 
+public record SupportTicketDto(string Id, SupportTicketType Type, string Subject, SupportTicketStatus Status, DateTime CreatedAt);
+
+public record CreateSupportTicketRequest(
+    [Required] SupportTicketType? Type,
+    [Required, MinLength(3, ErrorMessage = "Add a short subject."), MaxLength(120)] string Subject,
+    [Required, MinLength(10, ErrorMessage = "Describe it in at least 10 characters."), MaxLength(4000)] string Message);
+
 public record CategoryDto(int Id, string Name);
 
 public record CreateCategoryRequest([Required, MinLength(2), MaxLength(60)] string Name);

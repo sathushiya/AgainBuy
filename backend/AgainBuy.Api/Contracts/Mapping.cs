@@ -27,6 +27,9 @@ public static class Mapping
 
     public static PlatformUserDto ToPlatformDto(this User user) => new(user.Id, user.Name, user.Email, user.Role, user.Status, user.CreatedAt);
 
+    public static SupportTicketDto ToDto(this SupportTicket ticket) =>
+        new(ticket.Id, ticket.Type, ticket.Subject, ticket.Status, ticket.CreatedAt);
+
     public static FacilityDto ToDto(this Facility facility) => new(
         facility.Id, facility.Name, facility.Location, facility.ResourceCount, facility.ActiveBookings, facility.Status);
 
