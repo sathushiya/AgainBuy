@@ -11,6 +11,14 @@ public class User
     public string Avatar { get; set; } = "";
     public string Location { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    // Notification preferences, edited from Settings & Help.
+    public bool NotifyMessages { get; set; } = true;
+    public bool NotifyOrders { get; set; } = true;
+    public bool NotifyNews { get; set; }
+
+    // Pickup spots the user reuses when listing items; the first is the default.
+    public List<string> SavedLocations { get; set; } = [];
 }
 
 public class Category
@@ -132,4 +140,15 @@ public class ActivityLog
     public required string ActorId { get; set; }
     public required string Description { get; set; }
     public DateTime At { get; set; } = DateTime.UtcNow;
+}
+
+public class SupportTicket
+{
+    public required string Id { get; set; }
+    public required string UserId { get; set; }
+    public SupportTicketType Type { get; set; }
+    public required string Subject { get; set; }
+    public required string Message { get; set; }
+    public SupportTicketStatus Status { get; set; } = SupportTicketStatus.Open;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
