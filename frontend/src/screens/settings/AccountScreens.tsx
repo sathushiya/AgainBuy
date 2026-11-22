@@ -1,11 +1,13 @@
 import React from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Switch, Text, View } from "react-native";
 import { AppIcon } from "../../components/AppIcon";
-import { AppTextInput, ErrorMessage, PrimaryButton, ScreenContainer, SecondaryButton } from "../../components/core";
+import { AppTextInput, ErrorMessage, LoadingIndicator, PrimaryButton, ScreenContainer, SecondaryButton } from "../../components/core";
 import { useApp } from "../../context/AppContext";
+import { useApiData } from "../../hooks/useApiData";
 import { api, errorMessage } from "../../services/api";
 import { pickPhotos, uploadPhoto } from "../../services/photos";
 import { colors, radius, spacing, typography } from "../../theme";
+import { AccountSettings } from "../../types";
 
 export function PersonalInfoScreen() {
   const { user, updateUser } = useApp();
@@ -78,6 +80,37 @@ export function PrivacySafetyScreen() {
   return <ScreenContainer keyboardAware><Text style={styles.sectionTitle}>Change password</Text><View style={styles.form}><AppTextInput label="Current password" secureTextEntry value={current} onChangeText={setCurrent}/><AppTextInput label="New password" secureTextEntry value={next} onChangeText={setNext} error={nextError}/><AppTextInput label="Confirm new password" secureTextEntry value={confirm} onChangeText={setConfirm} error={confirmError}/>{notice && (notice.ok ? <Text style={styles.success}>{notice.text}</Text> : <ErrorMessage message={notice.text}/>)}<PrimaryButton title="Change password" disabled={!ready} loading={saving} onPress={changePassword}/></View><Text style={[styles.sectionTitle, styles.spaced]}>What other people see</Text><InfoCard icon="person-outline" title="Visible on your listings and messages" text="Your name, profile photo, rating and the pickup location you choose for each listing."/><InfoCard icon="shield-checkmark-outline" title="Never shown to other users" text="Your email address, your password and your saved locations. AgainBuy staff will never ask for your password."/><InfoCard icon="alert-circle-outline" title="Stay safe" text="Keep conversations in AgainBuy messages, never share bank details, and report anything suspicious from Settings & Help."/></ScreenContainer>;
 }
 
+const NOTIFICATION_OPTIONS: { key: "notifyMessages" | "notifyOrders" | "notifyNews"; title: string; text: string }[] = [
+  { key: "notifyMessages", title: "New message alerts", text: "Show a badge on Messages when a buyer or seller writes to you." },
+  { key: "notifyOrders", title: "Purchase and sale updates", text: "When someone reserves your item, or a meetup is completed or cancelled." },
+  { key: "notifyNews", title: "Tips and marketplace news", text: "Occasional selling tips and AgainBuy announcements." },
+];
+
+export function NotificationPreferencesScreen() {
+  const { setMessageAlerts } = useApp();
+  const { data: settings, error, loading, setData } = useApiData(() => api.accountSettings());
+  const [saveError, setSaveError] = React.useState<string | null>(null);
+
+  const toggle = async (key: (typeof NOTIFICATION_OPTIONS)[number]["key"], value: boolean) => {
+    if (!settings) return;
+    const previous = settings;
+    const next: AccountSettings = { ...settings, [key]: value };
+    setData(next);
+    if (key === "notifyMessages") setMessageAlerts(value);
+    setSaveError(null);
+    try {
+      setData(await api.updateAccountSettings(next));
+    } catch (caught) {
+      // Put the switch back so it never shows a setting that wasn't saved.
+      setData(previous);
+      if (key === "notifyMessages") setMessageAlerts(previous.notifyMessages);
+      setSaveError(errorMessage(caught));
+    }
+  };
+
+  return <ScreenContainer>{(error || saveError) && <ErrorMessage message={(saveError ?? error)!}/>}{loading && !settings ? <LoadingIndicator/> : settings && NOTIFICATION_OPTIONS.map((option) => <View key={option.key} style={styles.toggleRow}><View style={styles.flex}><Text style={styles.infoTitle}>{option.title}</Text><Text style={styles.hint}>{option.text}</Text></View><Switch accessibilityLabel={option.title} value={settings[option.key]} onValueChange={(value) => toggle(option.key, value)} trackColor={{ false: colors.border, true: colors.terracotta }} thumbColor={colors.white}/></View>)}<Text style={styles.footnote}>Message alerts apply right away. Your other choices are saved to your account and used when AgainBuy sends purchase updates and news.</Text></ScreenContainer>;
+}
+
 function InfoCard({ icon, title, text }: { icon: string; title: string; text: string }) {
   return <View style={styles.infoCard}><AppIcon name={icon} size={22} color={colors.green}/><View style={styles.flex}><Text style={styles.infoTitle}>{title}</Text><Text style={styles.hint}>{text}</Text></View></View>;
 }
@@ -98,4 +131,6 @@ const styles = StyleSheet.create({
   spaced: { marginTop: spacing.xl, marginBottom: spacing.sm },
   infoCard: { flexDirection: "row", gap: spacing.sm, backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
   infoTitle: { ...typography.medium, color: colors.charcoal },
+  toggleRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
+  footnote: { ...typography.label, color: colors.textSecondary, marginTop: spacing.sm },
 });
