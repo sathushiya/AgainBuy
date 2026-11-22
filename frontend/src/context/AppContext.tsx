@@ -16,6 +16,8 @@ interface AppContextValue {
   /** Resolves to an error message, or null on success. */
   register: (name: string, email: string, password: string) => Promise<string | null>;
   logout: () => void;
+  /** Replaces the signed-in user, e.g. after editing the profile. */
+  updateUser: (user: AppUser) => void;
   toggleWishlist: (id: string) => void;
   clearAuthError: () => void;
   hasPermission: (permission: Permission) => boolean;
@@ -99,6 +101,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       }
     },
     logout,
+    updateUser(next) { setUser(next); },
     toggleWishlist(id) {
       const adding = !wishlist.includes(id);
       const apply = (add: boolean) => setWishlist((current) => add ? [...current.filter((item) => item !== id), id] : current.filter((item) => item !== id));
