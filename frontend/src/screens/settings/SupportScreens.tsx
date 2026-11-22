@@ -1,7 +1,12 @@
+import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { AppIcon, AppIconName } from "../../components/AppIcon";
-import { ScreenContainer } from "../../components/core";
+import { AppTextInput, ErrorMessage, PrimaryButton, ScreenContainer } from "../../components/core";
+import { useApiData } from "../../hooks/useApiData";
+import { api, errorMessage } from "../../services/api";
 import { colors, radius, spacing, typography } from "../../theme";
+import { SupportTicketType } from "../../types";
+import { formatDate } from "../../utils/format";
 
 interface GuideSection {
   icon: AppIconName;
@@ -61,6 +66,44 @@ export function SellingGuidelinesScreen() {
   ]}/>;
 }
 
+export function ReportProblemScreen() {
+  return <SupportForm type="problem" intro="Something not working, or a listing or user that worries you? Tell us what happened." subjectHint="e.g. Photos won't upload" messageHint="What happened, and which listing or person is it about?"/>;
+}
+
+export function ContactSupportScreen() {
+  return <SupportForm type="contact" intro="Questions about your account, a trade or how AgainBuy works? Send us a message." subjectHint="e.g. Question about my sale" messageHint="How can we help?"/>;
+}
+
+function SupportForm({ type, intro, subjectHint, messageHint }: { type: SupportTicketType; intro: string; subjectHint: string; messageHint: string }) {
+  const { data: tickets = [], reload } = useApiData(() => api.supportTickets());
+  const [subject, setSubject] = React.useState("");
+  const [message, setMessage] = React.useState("");
+  const [sending, setSending] = React.useState(false);
+  const [notice, setNotice] = React.useState<{ ok: boolean; text: string } | null>(null);
+
+  const subjectError = subject && subject.trim().length < 3 ? "Add a short subject." : undefined;
+  const messageError = message && message.trim().length < 10 ? "Describe it in at least 10 characters." : undefined;
+  const ready = subject.trim().length >= 3 && message.trim().length >= 10;
+
+  const send = async () => {
+    setSending(true);
+    setNotice(null);
+    try {
+      const ticket = await api.createSupportTicket({ type, subject: subject.trim(), message: message.trim() });
+      setSubject(""); setMessage("");
+      setNotice({ ok: true, text: `Sent. Your reference is .` });
+      void reload();
+    } catch (caught) {
+      setNotice({ ok: false, text: errorMessage(caught) });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const recent = tickets.filter((ticket) => ticket.type === type).slice(0, 5);
+  return <ScreenContainer keyboardAware><Text style={styles.intro}>{intro}</Text><View style={styles.form}><AppTextInput label="Subject" value={subject} onChangeText={setSubject} placeholder={subjectHint} error={subjectError}/><AppTextInput label="Details" value={message} onChangeText={setMessage} placeholder={messageHint} multiline error={messageError}/>{notice && (notice.ok ? <Text style={styles.success}>{notice.text}</Text> : <ErrorMessage message={notice.text}/>)}<PrimaryButton title="Send" disabled={!ready} loading={sending} onPress={send}/></View>{recent.length > 0 && <View style={styles.recent}><Text style={styles.sectionTitle}>Your recent requests</Text>{recent.map((ticket) => <View key={ticket.id} style={styles.ticket}><View style={styles.flex}><Text style={styles.ticketSubject}>{ticket.subject}</Text><Text style={styles.ticketMeta}>{ticket.id} · {formatDate(ticket.createdAt)}</Text></View><Text style={styles.ticketStatus}>{ticket.status}</Text></View>)}</View>}</ScreenContainer>;
+}
+
 const styles = StyleSheet.create({
   intro: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.md },
   section: { backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
@@ -70,4 +113,12 @@ const styles = StyleSheet.create({
   point: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
   bullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.terracotta, marginTop: 8 },
   pointText: { ...typography.body, color: colors.textSecondary, flex: 1 },
+  flex: { flex: 1 },
+  form: { gap: spacing.md },
+  success: { ...typography.caption, color: colors.green, fontWeight: "700" },
+  recent: { marginTop: spacing.xl, gap: spacing.sm },
+  ticket: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.sm },
+  ticketSubject: { ...typography.medium, color: colors.charcoal },
+  ticketMeta: { ...typography.label, color: colors.textSecondary, marginTop: 2 },
+  ticketStatus: { ...typography.label, color: colors.green },
 });

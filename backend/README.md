@@ -111,7 +111,7 @@ All routes are under `/api`. A 🔒 means a bearer token is required; the policy
 **Support** (any signed-in user)
 | Method | Route | Access |
 |---|---|---|
-| POST | `/support/tickets` `{ type: "problem" | "contact", subject, message }` | 🔒 any role |
+| POST | `/support/tickets` `{ type: "problem" \| "contact", subject, message }` | 🔒 any role |
 | GET | `/support/tickets` | 🔒 any role; your own requests only |
 
 **Administration** (admin)
