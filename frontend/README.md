@@ -77,7 +77,7 @@ Permissions are centralized in `src/config/permissions.ts`. The API enforces the
 - My Listings with deactivation and reactivation
 - Messaging with sellers, unread counts, and new conversations from product pages
 - Reserving items, plus purchase and sales history with complete/cancel
-- Settings, help, safety guidance, and logout confirmation
+- Settings & Help: profile and photo, password change, notification preferences, saved pickup locations, buying and selling guides, and support requests
 - API sign-in for Customer and Administrator
 - Role-specific dashboards, navigation, profiles, and logout
 - Platform user management, facility records, and listing moderation

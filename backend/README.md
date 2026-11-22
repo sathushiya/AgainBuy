@@ -84,6 +84,7 @@ All routes are under `/api`. A 🔒 means a bearer token is required; the policy
 | GET | `/auth/me` | 🔒 any role |
 | PUT | `/auth/me` | 🔒 `profile.manage_own` |
 | POST | `/auth/change-password` | 🔒 `profile.manage_own` |
+| GET / PUT | `/account/settings` → `{ notifyMessages, notifyOrders, notifyNews, savedLocations }` | 🔒 `profile.manage_own`; up to 10 saved locations |
 
 **Marketplace** (customer)
 | Method | Route | Access |
@@ -106,6 +107,12 @@ All routes are under `/api`. A 🔒 means a bearer token is required; the policy
 | GET | `/transactions?type=purchase\|sale`, `/transactions/{id}` | 🔒 `transaction.view_own` |
 | POST | `/transactions` `{ productId }` | 🔒 `transaction.view_own`; reserves the item |
 | POST | `/transactions/{id}/complete`, `/transactions/{id}/cancel` | 🔒 `transaction.view_own` |
+
+**Support** (any signed-in user)
+| Method | Route | Access |
+|---|---|---|
+| POST | `/support/tickets` `{ type: "problem" \| "contact", subject, message }` | 🔒 any role |
+| GET | `/support/tickets` | 🔒 any role; your own requests only |
 
 **Administration** (admin)
 | Method | Route | Access |

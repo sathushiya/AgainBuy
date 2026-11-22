@@ -62,3 +62,15 @@ public enum ModerationStatus
     Dismissed,
     Removed,
 }
+
+public enum SupportTicketType
+{
+    [JsonStringEnumMemberName("problem")] Problem,
+    [JsonStringEnumMemberName("contact")] Contact,
+}
+
+public enum SupportTicketStatus
+{
+    Open,
+    Closed,
+}

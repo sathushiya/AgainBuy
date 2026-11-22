@@ -5,6 +5,8 @@ import { AppIcon, AppIconName } from "../components/AppIcon";
 import { useApp } from "../context/AppContext";
 import { ExploreScreen } from "../screens/explore/ExploreScreen";
 import { HomeScreen } from "../screens/home/HomeScreen";
+import { NotificationPreferencesScreen, PersonalInfoScreen, PrivacySafetyScreen, SavedLocationsScreen } from "../screens/settings/AccountScreens";
+import { BuyingSafelyScreen, ContactSupportScreen, ReportProblemScreen, SellingGuidelinesScreen } from "../screens/settings/SupportScreens";
 import { ConversationScreen, MessagesScreen } from "../screens/messages/MessagesScreens";
 import { ProductDetailScreen } from "../screens/product/ProductDetailScreen";
 import { MyListingsScreen, SettingsScreen, WishlistScreen } from "../screens/profile/ProfileScreens";
@@ -25,7 +27,7 @@ const icons: Record<string, AppIconName> = {
 };
 
 function CustomerTabs() {
-  const { unreadMessages } = useApp();
+  const { unreadMessages, messageAlerts } = useApp();
   return <Tab.Navigator screenOptions={({ route }) => {
     const iconName = icons[route.name] ?? "grid-outline";
     return {
@@ -36,13 +38,13 @@ function CustomerTabs() {
       tabBarStyle: { height: 74, paddingTop: 7, paddingBottom: 10, borderTopColor: colors.border, backgroundColor: colors.white },
       tabBarIcon: ({ color, size, focused }) => route.name === "Sell" ? <View style={styles.sellIcon}><AppIcon name="add" size={27} color={colors.white}/></View> : <AppIcon name={focused ? iconName.replace("-outline", "") : iconName} size={size} color={color}/>,
     };
-  }}><Tab.Screen name="Home" component={HomeScreen}/><Tab.Screen name="Explore" component={ExploreScreen}/><Tab.Screen name="Sell" component={SellScreen}/><Tab.Screen name="Messages" component={MessagesScreen} options={{ tabBarBadge: unreadMessages > 0 ? (unreadMessages > 99 ? "99+" : unreadMessages) : undefined, tabBarBadgeStyle: { backgroundColor: colors.terracotta, color: colors.white, fontSize: 10 } }}/><Tab.Screen name="Profile" component={RoleProfileScreen}/></Tab.Navigator>;
+  }}><Tab.Screen name="Home" component={HomeScreen}/><Tab.Screen name="Explore" component={ExploreScreen}/><Tab.Screen name="Sell" component={SellScreen}/><Tab.Screen name="Messages" component={MessagesScreen} options={{ tabBarBadge: messageAlerts && unreadMessages > 0 ? (unreadMessages > 99 ? "99+" : unreadMessages) : undefined, tabBarBadgeStyle: { backgroundColor: colors.terracotta, color: colors.white, fontSize: 10 } }}/><Tab.Screen name="Profile" component={RoleProfileScreen}/></Tab.Navigator>;
 }
 
 export function CustomerNavigator() {
   const { user } = useApp();
   if (user?.role !== "customer") return null;
-  return <Stack.Navigator screenOptions={{ headerTintColor: colors.charcoal, headerShadowVisible: false, headerStyle: { backgroundColor: colors.cream }, contentStyle: { backgroundColor: colors.cream } }}><Stack.Screen name="CustomerTabs" component={CustomerTabs} options={{ headerShown: false }}/><Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }}/><Stack.Screen name="Conversation" component={ConversationScreen} options={{ title: "Conversation" }}/><Stack.Screen name="Wishlist" component={WishlistScreen} options={{ headerShown: false }}/><Stack.Screen name="MyListings" component={MyListingsScreen} options={{ title: "My Listings" }}/><Stack.Screen name="Purchases" component={PurchasesScreen} options={{ title: "My Purchases" }}/><Stack.Screen name="Sales" component={SalesScreen} options={{ title: "My Sales" }}/><Stack.Screen name="Settings" component={SettingsScreen} options={{ title: "Settings & Help" }}/><Stack.Screen name="RoleSettings" component={RoleSettingsScreen} options={{ title: "Settings & Support" }}/></Stack.Navigator>;
+  return <Stack.Navigator screenOptions={{ headerTintColor: colors.charcoal, headerShadowVisible: false, headerStyle: { backgroundColor: colors.cream }, contentStyle: { backgroundColor: colors.cream } }}><Stack.Screen name="CustomerTabs" component={CustomerTabs} options={{ headerShown: false }}/><Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }}/><Stack.Screen name="Conversation" component={ConversationScreen} options={{ title: "Conversation" }}/><Stack.Screen name="Wishlist" component={WishlistScreen} options={{ headerShown: false }}/><Stack.Screen name="MyListings" component={MyListingsScreen} options={{ title: "My Listings" }}/><Stack.Screen name="Purchases" component={PurchasesScreen} options={{ title: "My Purchases" }}/><Stack.Screen name="Sales" component={SalesScreen} options={{ title: "My Sales" }}/><Stack.Screen name="Settings" component={SettingsScreen} options={{ title: "Settings & Help" }}/><Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} options={{ title: "Personal information" }}/><Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} options={{ title: "Notification preferences" }}/><Stack.Screen name="PrivacySafety" component={PrivacySafetyScreen} options={{ title: "Privacy and safety" }}/><Stack.Screen name="SavedLocations" component={SavedLocationsScreen} options={{ title: "Saved locations" }}/><Stack.Screen name="BuyingSafely" component={BuyingSafelyScreen} options={{ title: "Buying safely" }}/><Stack.Screen name="SellingGuidelines" component={SellingGuidelinesScreen} options={{ title: "Selling guidelines" }}/><Stack.Screen name="ReportProblem" component={ReportProblemScreen} options={{ title: "Report a problem" }}/><Stack.Screen name="ContactSupport" component={ContactSupportScreen} options={{ title: "Contact support" }}/><Stack.Screen name="RoleSettings" component={RoleSettingsScreen} options={{ title: "Settings & Support" }}/></Stack.Navigator>;
 }
 
 const styles = StyleSheet.create({

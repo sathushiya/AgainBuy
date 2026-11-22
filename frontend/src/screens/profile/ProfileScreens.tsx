@@ -34,12 +34,16 @@ export function MyListingsScreen({ navigation }: { navigation: any }) {
   return <ScreenContainer><Text style={styles.pageTitle}>My Listings</Text><Text style={styles.meta}>Manage everything you’re selling</Text>{(error || actionError) && <ErrorMessage message={(actionError ?? error)!}/>}{loading && listings.length === 0 ? <LoadingIndicator/> : listings.length === 0 ? <EmptyState title="No listings yet" message="Sell something you no longer use." action="Sell an item" onAction={() => navigation.navigate("CustomerTabs", { screen: "Sell" })}/> : listings.map((item) => <View key={item.id} style={styles.listing}><ProductCard product={item} wide wished={wishlist.includes(item.id)} onPress={() => navigation.navigate("ProductDetail", { id: item.id })} onWishlist={() => toggleWishlist(item.id)}/><View style={styles.listingFooter}><StatusBadge status={item.status}/>{item.status === "Active" || item.status === "Reserved" ? <Pressable onPress={() => toggleActive(item.id, false)}><Text style={styles.deactivate}>Deactivate</Text></Pressable> : item.status === "Inactive" ? <Pressable onPress={() => toggleActive(item.id, true)}><Text style={styles.reactivate}>Reactivate</Text></Pressable> : null}</View></View>)}</ScreenContainer>;
 }
 
-export function SettingsScreen() {
-  return <ScreenContainer><Text style={styles.pageTitle}>Settings & Help</Text><Text style={styles.meta}>Account preferences and marketplace support</Text><SectionHeader title="Account"/>{["Personal information","Notification preferences","Privacy and safety","Saved locations"].map((label) => <Setting key={label} label={label}/>)}<SectionHeader title="Support"/>{["Buying safely","Selling guidelines","Report a problem","Contact support"].map((label) => <Setting key={label} label={label}/>)}<View style={styles.help}><AppIcon name="shield-checkmark-outline" size={24} color={colors.green}/><View style={styles.flex}><Text style={styles.helpTitle}>Stay safe when meeting</Text><Text style={styles.helpText}>Meet in a public place, inspect the product, and never send advance payments to unknown sellers.</Text></View></View></ScreenContainer>;
+// Each row opens its own page; route names are registered in CustomerNavigator.
+const ACCOUNT_SETTINGS = [["Personal information", "PersonalInfo"], ["Notification preferences", "NotificationPreferences"], ["Privacy and safety", "PrivacySafety"], ["Saved locations", "SavedLocations"]] as const;
+const SUPPORT_SETTINGS = [["Buying safely", "BuyingSafely"], ["Selling guidelines", "SellingGuidelines"], ["Report a problem", "ReportProblem"], ["Contact support", "ContactSupport"]] as const;
+
+export function SettingsScreen({ navigation }: { navigation: any }) {
+  return <ScreenContainer><Text style={styles.pageTitle}>Settings & Help</Text><Text style={styles.meta}>Account preferences and marketplace support</Text><SectionHeader title="Account"/>{ACCOUNT_SETTINGS.map(([label, route]) => <Setting key={label} label={label} onPress={() => navigation.navigate(route)}/>)}<SectionHeader title="Support"/>{SUPPORT_SETTINGS.map(([label, route]) => <Setting key={label} label={label} onPress={() => navigation.navigate(route)}/>)}<View style={styles.help}><AppIcon name="shield-checkmark-outline" size={24} color={colors.green}/><View style={styles.flex}><Text style={styles.helpTitle}>Stay safe when meeting</Text><Text style={styles.helpText}>Meet in a public place, inspect the product, and never send advance payments to unknown sellers.</Text></View></View></ScreenContainer>;
 }
 
-function Setting({ label }: { label: string }) {
-  return <Pressable accessibilityRole="button" style={styles.setting}><Text style={styles.menuLabel}>{label}</Text><AppIcon name="chevron-forward" size={18} color={colors.textSecondary}/></Pressable>;
+function Setting({ label, onPress }: { label: string; onPress: () => void }) {
+  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.setting, pressed && styles.pressed]}><Text style={styles.menuLabel}>{label}</Text><AppIcon name="chevron-forward" size={18} color={colors.textSecondary}/></Pressable>;
 }
 
 const styles = StyleSheet.create({
@@ -53,6 +57,7 @@ const styles = StyleSheet.create({
   deactivate: { ...typography.caption, color: colors.error, fontWeight: "700" },
   reactivate: { ...typography.caption, color: colors.green, fontWeight: "700" },
   setting: { minHeight: 56, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, marginBottom: spacing.xs, flexDirection: "row", alignItems: "center" },
+  pressed: { opacity: 0.82 },
   help: { flexDirection: "row", gap: spacing.sm, backgroundColor: colors.greenSoft, borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.lg },
   flex: { flex: 1 },
   helpTitle: { ...typography.medium, color: colors.green },

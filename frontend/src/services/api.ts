@@ -1,7 +1,7 @@
 import { API_URL } from "../config/apiUrl";
 import type {
-  AdminStats, AppUser, AuthResponse, Category, Conversation, ConversationDetail, Facility, ListingInput, Message,
-  ModerationCase, PagedResult, PlatformUser, Product, Transaction, UserRole, AccountStatus,
+  AccountSettings, AdminStats, AppUser, AuthResponse, Category, Conversation, ConversationDetail, Facility, ListingInput, Message,
+  ModerationCase, PagedResult, PlatformUser, Product, SupportTicket, SupportTicketType, Transaction, UserRole, AccountStatus,
 } from "../types";
 
 export class ApiError extends Error {
@@ -78,6 +78,14 @@ export const api = {
   register: (name: string, email: string, password: string) => request<AuthResponse>("POST", "/api/auth/register", { body: { name, email, password } }),
   forgotPassword: (email: string) => request<{ message: string }>("POST", "/api/auth/forgot-password", { body: { email } }),
   me: () => request<AppUser>("GET", "/api/auth/me"),
+  updateProfile: (input: { name: string; location?: string; avatar?: string }) => request<AppUser>("PUT", "/api/auth/me", { body: input }),
+  changePassword: (currentPassword: string, newPassword: string) => request<void>("POST", "/api/auth/change-password", { body: { currentPassword, newPassword } }),
+
+  // Settings & Help
+  accountSettings: () => request<AccountSettings>("GET", "/api/account/settings"),
+  updateAccountSettings: (settings: AccountSettings) => request<AccountSettings>("PUT", "/api/account/settings", { body: settings }),
+  supportTickets: () => request<SupportTicket[]>("GET", "/api/support/tickets"),
+  createSupportTicket: (input: { type: SupportTicketType; subject: string; message: string }) => request<SupportTicket>("POST", "/api/support/tickets", { body: input }),
 
   // Marketplace
   categories: () => request<Category[]>("GET", "/api/categories"),

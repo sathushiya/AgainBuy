@@ -25,6 +25,10 @@ public record ChangePasswordRequest(
     [Required] string CurrentPassword,
     [Required, MinLength(8, ErrorMessage = "Use at least 8 characters."), MaxLength(128)] string NewPassword);
 
+public record AccountSettingsDto(bool NotifyMessages, bool NotifyOrders, bool NotifyNews, IReadOnlyList<string> SavedLocations);
+
+public record UpdateAccountSettingsRequest(bool NotifyMessages, bool NotifyOrders, bool NotifyNews, [Required] IReadOnlyList<string> SavedLocations);
+
 public record UpdateProfileRequest(
     [Required, MinLength(2), MaxLength(120)] string Name,
     [MaxLength(120)] string? Location,
@@ -86,6 +90,13 @@ public record UpsertFacilityRequest(
     [Range(0, 100_000)] int ResourceCount,
     [Range(0, 100_000)] int ActiveBookings,
     [Required] FacilityStatus? Status);
+
+public record SupportTicketDto(string Id, SupportTicketType Type, string Subject, SupportTicketStatus Status, DateTime CreatedAt);
+
+public record CreateSupportTicketRequest(
+    [Required] SupportTicketType? Type,
+    [Required, MinLength(3, ErrorMessage = "Add a short subject."), MaxLength(120)] string Subject,
+    [Required, MinLength(10, ErrorMessage = "Describe it in at least 10 characters."), MaxLength(4000)] string Message);
 
 public record CategoryDto(int Id, string Name);
 

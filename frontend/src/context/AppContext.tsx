@@ -12,10 +12,15 @@ interface AppContextValue {
   /** Unread messages across all conversations; drives the bell and Messages tab badges. */
   unreadMessages: number;
   refreshUnreadMessages: () => void;
+  /** The "New message alerts" preference; when off, unread badges are hidden. */
+  messageAlerts: boolean;
+  setMessageAlerts: (enabled: boolean) => void;
   signIn: (email: string, password: string) => Promise<boolean>;
   /** Resolves to an error message, or null on success. */
   register: (name: string, email: string, password: string) => Promise<string | null>;
   logout: () => void;
+  /** Replaces the signed-in user, e.g. after editing the profile. */
+  updateUser: (user: AppUser) => void;
   toggleWishlist: (id: string) => void;
   clearAuthError: () => void;
   hasPermission: (permission: Permission) => boolean;
@@ -31,12 +36,14 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [messageAlerts, setMessageAlerts] = useState(true);
 
   const logout = useCallback(() => {
     authService.signOut();
     setUser(null);
     setWishlist([]);
     setUnreadMessages(0);
+    setMessageAlerts(true);
     setAuthError(null);
   }, []);
 
@@ -53,6 +60,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (user?.role !== "customer") return;
     api.wishlistIds().then(setWishlist).catch(() => setWishlist([]));
+    api.accountSettings().then((settings) => setMessageAlerts(settings.notifyMessages)).catch(() => {});
   }, [user]);
 
   const refreshUnreadMessages = useCallback(() => {
@@ -76,6 +84,8 @@ export function AppProvider({ children }: PropsWithChildren) {
     wishlist,
     unreadMessages,
     refreshUnreadMessages,
+    messageAlerts,
+    setMessageAlerts,
     async signIn(email, password) {
       if (isAuthenticating) return false;
       setIsAuthenticating(true);
@@ -99,6 +109,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       }
     },
     logout,
+    updateUser(next) { setUser(next); },
     toggleWishlist(id) {
       const adding = !wishlist.includes(id);
       const apply = (add: boolean) => setWishlist((current) => add ? [...current.filter((item) => item !== id), id] : current.filter((item) => item !== id));
@@ -107,7 +118,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     },
     clearAuthError() { setAuthError(null); },
     hasPermission(permission) { return canAccess(user?.role, permission); },
-  }), [user, wishlist, unreadMessages, refreshUnreadMessages, isAuthenticating, authError, logout]);
+  }), [user, wishlist, unreadMessages, refreshUnreadMessages, messageAlerts, isAuthenticating, authError, logout]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

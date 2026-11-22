@@ -162,3 +162,21 @@ export interface AdminStats {
   reportsAndFlags: number;
   recentActivity: { description: string; at: string }[];
 }
+
+export interface AccountSettings {
+  notifyMessages: boolean;
+  notifyOrders: boolean;
+  notifyNews: boolean;
+  /** Reusable pickup spots; the first one prefills the Sell form. */
+  savedLocations: string[];
+}
+
+export type SupportTicketType = "problem" | "contact";
+
+export interface SupportTicket {
+  id: string;
+  type: SupportTicketType;
+  subject: string;
+  status: "Open" | "Closed";
+  createdAt: string;
+}

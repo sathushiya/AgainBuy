@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Facility> Facilities => Set<Facility>();
     public DbSet<ModerationCase> ModerationCases => Set<ModerationCase>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
+    public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder builder)
     {
@@ -69,6 +70,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasOne(transaction => transaction.Product).WithMany().HasForeignKey(transaction => transaction.ProductId).OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(transaction => transaction.UserId);
             entity.HasIndex(transaction => transaction.OrderId);
+        });
+
+        model.Entity<SupportTicket>(entity =>
+        {
+            entity.HasOne<User>().WithMany().HasForeignKey(ticket => ticket.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(ticket => ticket.UserId);
+            entity.Property(ticket => ticket.Subject).HasMaxLength(120);
+            entity.Property(ticket => ticket.Message).HasMaxLength(4000);
         });
 
         model.Entity<ModerationCase>()

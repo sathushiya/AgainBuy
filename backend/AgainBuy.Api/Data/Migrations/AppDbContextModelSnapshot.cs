@@ -300,6 +300,43 @@ namespace AgainBuy.Api.Data.Migrations
                     b.ToTable("Products");
                 });
 
+            modelBuilder.Entity("AgainBuy.Api.Domain.SupportTicket", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("SupportTickets");
+                });
+
             modelBuilder.Entity("AgainBuy.Api.Domain.Transaction", b =>
                 {
                     b.Property<string>("Id")
@@ -373,6 +410,15 @@ namespace AgainBuy.Api.Data.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
 
+                    b.Property<bool>("NotifyMessages")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NotifyNews")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NotifyOrders")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
@@ -380,6 +426,10 @@ namespace AgainBuy.Api.Data.Migrations
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.PrimitiveCollection<List<string>>("SavedLocations")
+                        .IsRequired()
+                        .HasColumnType("text[]");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -457,6 +507,15 @@ namespace AgainBuy.Api.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("SellerUser");
+                });
+
+            modelBuilder.Entity("AgainBuy.Api.Domain.SupportTicket", b =>
+                {
+                    b.HasOne("AgainBuy.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("AgainBuy.Api.Domain.Transaction", b =>
