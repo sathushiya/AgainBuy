@@ -1,14 +1,12 @@
 # AgainBuy
 
-Monorepo with an Expo / React Native app in `frontend/` and an ASP.NET Core API in `backend/`, running inside Figma Make.
+Monorepo with an Expo / React Native app in `frontend/` and an ASP.NET Core API in `backend/`.
 
 ## Development Server
 
-The Figma Make preview runs the **frontend** with `expo start --web` on `$PORT` (default 8443). It is **already running**, so you don't need to start it. The scripts in `.figma/make/` `cd` into `frontend/` first.
-
-- Preview URL: The user can access the running app through the preview panel
-- Hot reload: Changes to source files are reflected immediately
-- The backend is not part of the preview. Start PostgreSQL with `docker compose -f backend/docker-compose.yml up -d`, then run `dotnet run --project backend/AgainBuy.Api` (http://localhost:5080).
+- Backend: start PostgreSQL with `docker compose -f backend/docker-compose.yml up -d`, then run `dotnet run --project backend/AgainBuy.Api` (http://localhost:5080). The app needs it running.
+- Frontend: run `npx expo start` in `frontend/`; press `w` for the web version (http://localhost:8081), or open it in Expo Go or an emulator.
+- Hot reload: changes to frontend source files are reflected immediately.
 
 ## Project Structure
 
@@ -31,7 +29,7 @@ Backend (`backend/`): see `backend/README.md`.
 - `AgainBuy.Api/Controllers/` - HTTP endpoints; `Contracts/` - DTOs; `Data/` - EF Core context and seed data; `Images/` - Cloudinary photo storage
 - `AgainBuy.Api.Tests/` - Integration tests (`dotnet test` from `backend/`)
 
-Root: `.mise.toml` - Node.js and pnpm versions; `.figma/make/` - Figma Make scripts.
+Root: `.mise.toml` - Node.js and pnpm versions.
 
 ## Dependencies
 

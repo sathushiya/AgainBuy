@@ -15,7 +15,7 @@ AgainBuy is a native Expo marketplace for buying and selling pre-owned products 
 - React Native `StyleSheet`
 - `react-native-svg` for the reusable AgainBuy vector logo
 
-The implementation uses React Native primitives. Expo web exists only to provide the supervised Figma Make preview; Android and iOS remain the primary application targets.
+The implementation uses React Native primitives. Expo web is handy for quick previews in the browser; Android and iOS remain the primary application targets.
 
 ## Run
 

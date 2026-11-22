@@ -48,7 +48,7 @@ It's applied automatically on the next start.
 | `Jwt:Key` | HMAC signing key, at least 32 characters. **Required outside Development**; the app refuses to start without it. | dev-only key |
 | `Jwt:LifetimeMinutes` | Token lifetime | `480` |
 | `Database:SeedDemoData` | Seed demo accounts and listings into an empty database | `true` (off in production) |
-| `Cors:Origins` | Allowed browser origins (Expo web) | `localhost:8081`, `8443`, `19006` |
+| `Cors:Origins` | Allowed browser origins (Expo web) | `localhost:8081`, `19006` |
 | `RateLimiting:AuthPermitPerMinute` | Requests per IP per minute to `/api/auth/*` | `10` |
 | `RateLimiting:UploadsPerMinute` | Photo uploads per user per minute | `30` |
 | `Cloudinary:CloudName`, `Cloudinary:ApiKey`, `Cloudinary:ApiSecret` | Cloudinary credentials for listing photos. If any is missing, the API still runs but `/api/uploads/images` answers 503. **Never commit these.** | empty |
