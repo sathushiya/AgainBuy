@@ -25,6 +25,10 @@ public record ChangePasswordRequest(
     [Required] string CurrentPassword,
     [Required, MinLength(8, ErrorMessage = "Use at least 8 characters."), MaxLength(128)] string NewPassword);
 
+public record AccountSettingsDto(bool NotifyMessages, bool NotifyOrders, bool NotifyNews, IReadOnlyList<string> SavedLocations);
+
+public record UpdateAccountSettingsRequest(bool NotifyMessages, bool NotifyOrders, bool NotifyNews, [Required] IReadOnlyList<string> SavedLocations);
+
 public record UpdateProfileRequest(
     [Required, MinLength(2), MaxLength(120)] string Name,
     [MaxLength(120)] string? Location,

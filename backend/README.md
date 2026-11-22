@@ -84,6 +84,7 @@ All routes are under `/api`. A 🔒 means a bearer token is required; the policy
 | GET | `/auth/me` | 🔒 any role |
 | PUT | `/auth/me` | 🔒 `profile.manage_own` |
 | POST | `/auth/change-password` | 🔒 `profile.manage_own` |
+| GET / PUT | `/account/settings` → `{ notifyMessages, notifyOrders, notifyNews, savedLocations }` | 🔒 `profile.manage_own`; up to 10 saved locations |
 
 **Marketplace** (customer)
 | Method | Route | Access |

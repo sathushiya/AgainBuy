@@ -11,6 +11,9 @@ public static class Mapping
         user.CreatedAt.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
         Permissions.ByRole[user.Role]);
 
+    public static AccountSettingsDto ToSettingsDto(this User user) =>
+        new(user.NotifyMessages, user.NotifyOrders, user.NotifyNews, user.SavedLocations);
+
     public static ProductDto ToDto(this Product product, string? viewerId) => new(
         product.Id, product.Title, product.Category, product.Price, product.OriginalPrice, product.Image,
         product.Images.Count > 0 ? product.Images : [product.Image],
