@@ -12,7 +12,7 @@ public static class Mapping
         Permissions.ByRole[user.Role]);
 
     public static AccountSettingsDto ToSettingsDto(this User user) =>
-        new(user.NotifyMessages, user.NotifyOrders, user.NotifyNews, user.SavedLocations);
+        new(user.NotifyMessages, user.NotifyOrders, user.NotifyNews, user.SavedLocations, user.BankDetails);
 
     public static ProductDto ToDto(this Product product, string? viewerId) => new(
         product.Id, product.Title, product.Category, product.Price, product.OriginalPrice, product.Image,

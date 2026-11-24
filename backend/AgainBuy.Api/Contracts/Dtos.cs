@@ -25,9 +25,10 @@ public record ChangePasswordRequest(
     [Required] string CurrentPassword,
     [Required, MinLength(8, ErrorMessage = "Use at least 8 characters."), MaxLength(128)] string NewPassword);
 
-public record AccountSettingsDto(bool NotifyMessages, bool NotifyOrders, bool NotifyNews, IReadOnlyList<string> SavedLocations);
+public record AccountSettingsDto(bool NotifyMessages, bool NotifyOrders, bool NotifyNews, IReadOnlyList<string> SavedLocations, string BankDetails);
 
-public record UpdateAccountSettingsRequest(bool NotifyMessages, bool NotifyOrders, bool NotifyNews, [Required] IReadOnlyList<string> SavedLocations);
+// BankDetails null means "leave unchanged", so older clients can't wipe it.
+public record UpdateAccountSettingsRequest(bool NotifyMessages, bool NotifyOrders, bool NotifyNews, [Required] IReadOnlyList<string> SavedLocations, [MaxLength(500, ErrorMessage = "Keep bank details under 500 characters.")] string? BankDetails = null);
 
 public record UpdateProfileRequest(
     [Required, MinLength(2), MaxLength(120)] string Name,
