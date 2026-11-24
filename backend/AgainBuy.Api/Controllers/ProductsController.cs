@@ -211,6 +211,8 @@ public class ProductsController(AppDbContext db, IOptions<CloudinaryOptions> clo
             errors["purchaseYear"] = ["Purchase year cannot be in the future."];
         if (request.OriginalPrice is { } original && original < request.Price)
             errors["originalPrice"] = ["Original price should not be lower than the selling price."];
+        if (request.Delivery == DeliveryOption.Delivery && request.Courier is null)
+            errors["courier"] = ["Choose PickMe or Domex for delivery."];
         if (request.Images?.Any(image => !ImageUrls.IsAllowed(image, cloudinary.Value)) == true)
             errors["images"] = [cloudinary.Value.IsComplete ? "Upload photos through the app; outside image links are not allowed." : "Images must be absolute http(s) URLs."];
 
@@ -233,6 +235,7 @@ public class ProductsController(AppDbContext db, IOptions<CloudinaryOptions> clo
         product.Accessories = request.Accessories?.Trim() ?? "";
         product.ReasonForSelling = request.ReasonForSelling?.Trim() ?? "";
         product.Delivery = request.Delivery ?? DeliveryOption.MeetUp;
+        product.Courier = product.Delivery == DeliveryOption.Delivery ? request.Courier : null;
         // Keep the app's order; drop blank values and repeated keys.
         product.Specifications = (request.Specifications ?? [])
             .Select(specification => new ProductSpecification(specification.Key.Trim(), specification.Label.Trim(), specification.Value.Trim()))

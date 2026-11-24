@@ -225,6 +225,9 @@ namespace AgainBuy.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Courier")
+                        .HasColumnType("text");
+
                     b.Property<string>("Defects")
                         .IsRequired()
                         .HasColumnType("text");

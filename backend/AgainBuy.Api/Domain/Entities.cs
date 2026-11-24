@@ -58,6 +58,9 @@ public class Product
     public string ReasonForSelling { get; set; } = "";
     public DeliveryOption Delivery { get; set; } = DeliveryOption.MeetUp;
 
+    // Only set for Delivery listings; the seller books it on the courier's own website.
+    public CourierService? Courier { get; set; }
+
     // Category-specific details (e.g. Storage capacity, Battery health), in the
     // order the app showed them. Stored as one JSON column.
     public List<ProductSpecification> Specifications { get; set; } = [];

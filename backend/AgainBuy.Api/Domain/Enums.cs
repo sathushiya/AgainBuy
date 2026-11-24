@@ -67,8 +67,15 @@ public enum ModerationStatus
 public enum DeliveryOption
 {
     Delivery,
+    // Shown to buyers as "Pickup only".
     [JsonStringEnumMemberName("Meet-up")] MeetUp,
-    Both,
+}
+
+/// <summary>Couriers a seller can arrange delivery with on their own websites (no API integration).</summary>
+public enum CourierService
+{
+    PickMe,
+    Domex,
 }
 
 public enum SupportTicketType

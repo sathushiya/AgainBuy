@@ -37,7 +37,7 @@ public record UpdateProfileRequest(
 public record ProductDto(
     string Id, string Title, string Category, decimal Price, decimal? OriginalPrice, string Image, IReadOnlyList<string> Images,
     ProductCondition Condition, string Usage, int PurchaseYear, string Location, string Seller, string SellerAvatar, double SellerRating,
-    string Brand, string Model, string Description, string Defects, string Accessories, string ReasonForSelling, DeliveryOption Delivery,
+    string Brand, string Model, string Description, string Defects, string Accessories, string ReasonForSelling, DeliveryOption Delivery, CourierService? Courier,
     IReadOnlyList<ProductSpecification> Specifications, DateTime ListedAt, ListingStatus Status, bool IsOwn);
 
 // Mirrors the Sell screen's zod schema in frontend/src/screens/sell/SellScreen.tsx.
@@ -58,6 +58,8 @@ public record UpsertListingRequest(
     [MaxLength(300, ErrorMessage = "Keep the reason under 300 characters.")] string? ReasonForSelling,
     // Optional for older clients; a missing value means meet-up only.
     DeliveryOption? Delivery,
+    // Required with Delivery, ignored for pickup.
+    CourierService? Courier,
     // Category-specific details from the app's second Sell step.
     [MaxLength(40, ErrorMessage = "Too many details; keep it to 40.")] IReadOnlyList<SpecificationInput>? Specifications,
     [Required, MinLength(2, ErrorMessage = "Add a pickup location."), MaxLength(120)] string Location,
