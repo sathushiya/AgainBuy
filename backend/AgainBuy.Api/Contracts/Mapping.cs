@@ -12,14 +12,14 @@ public static class Mapping
         Permissions.ByRole[user.Role]);
 
     public static AccountSettingsDto ToSettingsDto(this User user) =>
-        new(user.NotifyMessages, user.NotifyOrders, user.NotifyNews, user.SavedLocations);
+        new(user.NotifyMessages, user.NotifyOrders, user.NotifyNews, user.SavedLocations, user.BankDetails);
 
     public static ProductDto ToDto(this Product product, string? viewerId) => new(
         product.Id, product.Title, product.Category, product.Price, product.OriginalPrice, product.Image,
         product.Images.Count > 0 ? product.Images : [product.Image],
         product.Condition, product.Usage, product.PurchaseYear, product.Location, product.SellerName, product.SellerAvatar,
-        product.SellerRating, product.Brand, product.Model, product.Description, product.Defects, product.Accessories, product.ReasonForSelling, product.Delivery, product.Specifications,
-        product.ListedAt, product.Status, viewerId is not null && product.SellerId == viewerId);
+        product.SellerRating, product.Brand, product.Model, product.Description, product.Defects, product.Accessories, product.ReasonForSelling, product.Delivery, product.Courier, product.Specifications,
+        product.ListedAt, product.Status, viewerId is not null && product.SellerId == viewerId, product.SellerId != null);
 
     public static TransactionDto ToDto(this Transaction transaction) => new(
         transaction.Id, transaction.ProductId, transaction.Product?.Title ?? "", transaction.Product?.Image ?? "",

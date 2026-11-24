@@ -33,7 +33,7 @@ public class UploadsController(IImageStorage storage) : ControllerBase
 
         await using var content = file.OpenReadStream();
         // Trust the bytes, not the client's file name or content type.
-        if (!await LooksLikeImage(content, cancellationToken))
+        if (await FileSignatures.DetectAsync(content, cancellationToken) is null or FileSignatures.Pdf)
             return Invalid("Only JPEG, PNG, WebP or HEIC photos can be uploaded.");
         content.Position = 0;
 
@@ -46,21 +46,6 @@ public class UploadsController(IImageStorage storage) : ControllerBase
         {
             return Problem(statusCode: StatusCodes.Status502BadGateway, title: "The photo couldn't be stored. Please try again.");
         }
-    }
-
-    private static async Task<bool> LooksLikeImage(Stream content, CancellationToken cancellationToken)
-    {
-        var header = new byte[12];
-        var read = await content.ReadAtLeastAsync(header, header.Length, throwOnEndOfStream: false, cancellationToken);
-        if (read < header.Length) return false;
-
-        bool At(int offset, params byte[] bytes) => header.AsSpan(offset, bytes.Length).SequenceEqual(bytes);
-        bool Ascii(int offset, string text) => At(offset, System.Text.Encoding.ASCII.GetBytes(text));
-
-        return At(0, 0xFF, 0xD8, 0xFF)                                   // JPEG
-            || At(0, 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)       // PNG
-            || (Ascii(0, "RIFF") && Ascii(8, "WEBP"))                      // WebP
-            || (Ascii(4, "ftyp") && (Ascii(8, "heic") || Ascii(8, "heix") || Ascii(8, "mif1") || Ascii(8, "msf1"))); // HEIC/HEIF
     }
 
     private ActionResult Invalid(string message) =>

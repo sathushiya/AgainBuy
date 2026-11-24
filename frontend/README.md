@@ -74,11 +74,14 @@ Permissions are centralized in `src/config/permissions.ts`. The API enforces the
 - Search and filtering by category and condition
 - Product details with prices, usage, year, condition, defects, accessories, seller, and location
 - Wishlist saved to your account
-- Selling in three steps: listing details (up to 8 photos uploaded to Cloudinary, reason for selling, delivery availability) → category-specific details for the chosen category and subtype (e.g. Phones: storage and battery health; Furniture → Sofa: seats and dimensions), validated per category → review and publish. Buyers see the details under Specifications
+- Selling in three steps: listing details (up to 8 photos uploaded to Cloudinary, reason for selling, Delivery Available with PickMe or Domex, or Pickup Only) → category-specific details for the chosen category and subtype (e.g. Phones: storage and battery health; Furniture → Sofa: seats and dimensions), validated per category → review and publish. Buyers see the details under Specifications
 - My Listings with deactivation and reactivation
 - Messaging with sellers, unread counts, and new conversations from product pages
-- Reserving items, plus purchase and sales history with complete/cancel
-- Settings & Help: profile and photo, password change, notification preferences, saved pickup locations, buying and selling guides, and support requests
+- Reserving instead of buying: a reserved item leaves browsing, and buyer and seller work through negotiation → deal agreed (both agree) → bank-transfer payment with an uploaded receipt that the seller verifies → shipped with tracking or ready for pickup → delivered (confirmed by the buyer) → completed
+- Order dashboards: "My orders" for buyers and "Reserved by customers" for sellers, with a timeline, full history, chat, and a downloadable PDF delivery receipt
+- In-app notifications for every order step, with an unread badge on the Profile tab
+- Purchase and sales history
+- Settings & Help: profile and photo, password change, notification preferences, bank transfer details (for sellers), saved pickup locations, buying and selling guides, and support requests
 - API sign-in for Customer and Administrator
 - Role-specific dashboards, navigation, profiles, and logout
 - Platform user management, facility records, and listing moderation
@@ -95,7 +98,8 @@ Brand colors are centralized in `src/theme/index.ts`.
 
 ## Current limitations
 
-- Purchases reserve the item and schedule a meetup; no money is processed.
+- Payment is a bank transfer between buyer and seller; AgainBuy never moves money and never confirms a payment automatically. PickMe and Domex are linked, not integrated: the seller books the courier and enters the tracking number.
+- Seeded sample listings have no seller account, so they cannot be reserved. Try it with a listing posted by a demo customer.
 - Photo upload needs Cloudinary credentials on the backend (see `../backend/README.md`). Without them, "Choose photos" shows an error and listings use a placeholder image.
 - Sessions are not saved, so restarting the app signs you out.
 - Seeded product images and marketplace data are samples.

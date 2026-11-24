@@ -25,9 +25,10 @@ public record ChangePasswordRequest(
     [Required] string CurrentPassword,
     [Required, MinLength(8, ErrorMessage = "Use at least 8 characters."), MaxLength(128)] string NewPassword);
 
-public record AccountSettingsDto(bool NotifyMessages, bool NotifyOrders, bool NotifyNews, IReadOnlyList<string> SavedLocations);
+public record AccountSettingsDto(bool NotifyMessages, bool NotifyOrders, bool NotifyNews, IReadOnlyList<string> SavedLocations, string BankDetails);
 
-public record UpdateAccountSettingsRequest(bool NotifyMessages, bool NotifyOrders, bool NotifyNews, [Required] IReadOnlyList<string> SavedLocations);
+// BankDetails null means "leave unchanged", so older clients can't wipe it.
+public record UpdateAccountSettingsRequest(bool NotifyMessages, bool NotifyOrders, bool NotifyNews, [Required] IReadOnlyList<string> SavedLocations, [MaxLength(500, ErrorMessage = "Keep bank details under 500 characters.")] string? BankDetails = null);
 
 public record UpdateProfileRequest(
     [Required, MinLength(2), MaxLength(120)] string Name,
@@ -37,8 +38,12 @@ public record UpdateProfileRequest(
 public record ProductDto(
     string Id, string Title, string Category, decimal Price, decimal? OriginalPrice, string Image, IReadOnlyList<string> Images,
     ProductCondition Condition, string Usage, int PurchaseYear, string Location, string Seller, string SellerAvatar, double SellerRating,
-    string Brand, string Model, string Description, string Defects, string Accessories, string ReasonForSelling, DeliveryOption Delivery,
-    IReadOnlyList<ProductSpecification> Specifications, DateTime ListedAt, ListingStatus Status, bool IsOwn);
+    string Brand, string Model, string Description, string Defects, string Accessories, string ReasonForSelling, DeliveryOption Delivery, CourierService? Courier,
+    IReadOnlyList<ProductSpecification> Specifications, DateTime ListedAt, ListingStatus Status, bool IsOwn,
+    // Reserving needs a seller account (seeded demo sellers have none).
+    bool HasSellerAccount,
+    // The viewer's live order for this product (as buyer or seller), on the detail endpoint only.
+    string? MyOrderId = null);
 
 // Mirrors the Sell screen's zod schema in frontend/src/screens/sell/SellScreen.tsx.
 public record UpsertListingRequest(
@@ -58,6 +63,8 @@ public record UpsertListingRequest(
     [MaxLength(300, ErrorMessage = "Keep the reason under 300 characters.")] string? ReasonForSelling,
     // Optional for older clients; a missing value means meet-up only.
     DeliveryOption? Delivery,
+    // Required with Delivery, ignored for pickup.
+    CourierService? Courier,
     // Category-specific details from the app's second Sell step.
     [MaxLength(40, ErrorMessage = "Too many details; keep it to 40.")] IReadOnlyList<SpecificationInput>? Specifications,
     [Required, MinLength(2, ErrorMessage = "Add a pickup location."), MaxLength(120)] string Location,
@@ -79,6 +86,8 @@ public record MessageDto(int Id, string SenderName, string Body, string? ImageUr
 
 public record UnreadCountDto(int Count);
 
+public record NotificationDto(int Id, NotificationType Type, string Title, string Body, string? OrderId, DateTime CreatedAt, bool Read);
+
 public record ConversationDetailDto(ConversationDto Conversation, IReadOnlyList<MessageDto> Messages);
 
 // A message needs text, a photo, or both (checked in ConversationsController).
@@ -88,7 +97,6 @@ public record SendMessageRequest([MaxLength(2000)] string? Body, [MaxLength(2048
 
 public record TransactionDto(string Id, string ProductId, string ProductTitle, string ProductImage, TransactionType Type, string Party, decimal Amount, DateTime Date, TransactionStatus Status);
 
-public record PurchaseRequest([Required] string ProductId);
 
 public record PlatformUserDto(string Id, string Name, string Email, UserRole Role, AccountStatus Status, DateTime Joined);
 
@@ -121,3 +129,40 @@ public record ModerationCaseDto(string Id, string? ProductId, string Title, stri
 public record ActivityDto(string Description, DateTime At);
 
 public record AdminStatsDto(int TotalUsers, int ActiveCustomers, int Facilities, int ActiveListings, int PendingReviews, int ReportsAndFlags, IReadOnlyList<ActivityDto> RecentActivity);
+
+// ---- Orders (reserve → negotiate → pay → deliver) -------------------------
+
+public record OrderPartyDto(string Id, string Name, string Avatar, string Location);
+
+public record OrderSummaryDto(
+    string Id, string ProductId, string ProductTitle, string ProductImage, OrderStatus Status, bool IsBuyer,
+    OrderPartyDto OtherParty, decimal AgreedPrice, DeliveryOption DeliveryMethod, CourierService? Courier,
+    DateTime CreatedAt, DateTime UpdatedAt, bool HasDeliveryReceipt);
+
+public record OrderEventDto(OrderStatus Status, string Note, DateTime At, string? ActorName);
+
+public record OrderDetailDto(
+    OrderSummaryDto Summary, OrderPartyDto Buyer, OrderPartyDto Seller, decimal ListingPrice,
+    DateTime? BuyerAgreedAt, DateTime? SellerAgreedAt,
+    string PaymentInstructions, string PaymentReference, DateTime? PaymentSubmittedAt, DateTime? PaymentConfirmedAt, bool HasPaymentReceipt,
+    string TrackingNumber, string DeliveryNotes, DateTime? DispatchedAt, DateTime? DeliveredAt, DateTime? CompletedAt, DateTime? CancelledAt,
+    string? DeliveryReceiptNumber, string? ConversationId, IReadOnlyList<OrderEventDto> History,
+    // What the signed-in user may do now, e.g. "agree", "confirmPayment". The API enforces the same rules.
+    IReadOnlyList<string> Actions);
+
+public record ReserveRequest([Required] string ProductId);
+
+public record ProposePriceRequest([Range(1, 100_000_000, ErrorMessage = "Enter a valid price.")] decimal Price);
+
+public record RejectPaymentRequest([Required, MinLength(3, ErrorMessage = "Say what is wrong, e.g. no transfer received."), MaxLength(200)] string Reason);
+
+/// <summary>A path (relative to the API) valid for a few minutes; no Authorization header needed.</summary>
+public record FileLinkDto(string Url, DateTime ExpiresAt);
+
+public record ShipRequest(
+    // Optional when the listing already names a courier; the seller may switch.
+    CourierService? Courier,
+    [Required, MinLength(3, ErrorMessage = "Enter the courier's tracking number."), MaxLength(80)] string TrackingNumber,
+    [MaxLength(500)] string? DeliveryNotes);
+
+public record ReadyForPickupRequest([MaxLength(500)] string? PickupNotes);

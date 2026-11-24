@@ -104,7 +104,32 @@ All routes are under `/api`. A 🔒 means a bearer token is required; the policy
 | GET | `/conversations/unread-count` → `{ count }` | 🔒 `marketplace.browse`; total unread messages, for badges |
 | POST | `/conversations` `{ productId, message?, imageUrl? }` (text, a photo, or both) | 🔒 `marketplace.browse` |
 | POST | `/conversations/{id}/messages` `{ body?, imageUrl? }` (text, a photo, or both) | 🔒 `marketplace.browse`, participants only |
-| GET | `/transactions?type=purchase\|sale`, `/transactions/{id}` | 🔒 `transaction.view_own` |
+| GET | `/transactions?type=purchase|sale`, `/transactions/{id}` | 🔒 `transaction.view_own`; purchase and sales history (completed orders add rows) |
+| POST | `/transactions/{id}/complete`, `/transactions/{id}/cancel` | 🔒 `transaction.view_own`; older meetup-scheduled records only |
+
+**Orders** (customers; only the order's buyer and seller can see or act on it)
+| Method | Route | Who |
+|---|---|---|
+| POST | `/orders` `{ productId }` | buyer; reserves the listing (hidden from browsing), opens a chat, status *Negotiating* |
+| GET | `/orders?as=buyer|seller` | your orders as buyer ("My reservations") or seller ("Reserved by customers") |
+| GET | `/orders/{id}` | buyer or seller; includes history and `actions` (what you may do now) |
+| POST | `/orders/{id}/price` `{ price }` | either, while negotiating; resets both agreements |
+| POST | `/orders/{id}/agree` | either; once both agree → *Deal agreed* → *Payment pending* (seller needs bank details saved) |
+| POST | `/orders/{id}/cancel` | buyer, before paying; the listing goes back on sale |
+| POST | `/orders/{id}/payment-receipt` (multipart `file`, `reference`) | buyer; image or PDF ≤ 5 MB → *Payment verification pending* |
+| POST | `/orders/{id}/confirm-payment` | seller only → *Payment confirmed* |
+| POST | `/orders/{id}/reject-payment` `{ reason }` | seller only → back to *Payment pending* |
+| POST | `/orders/{id}/ship` `{ courier?, trackingNumber, deliveryNotes? }` | seller, delivery orders → *Shipped*; generates the PDF receipt |
+| POST | `/orders/{id}/ready-for-pickup` `{ pickupNotes? }` | seller, pickup orders → *Ready for pickup*; generates the PDF receipt |
+| POST | `/orders/{id}/confirm-delivery` | buyer only → *Delivered* → *Completed*; listing marked sold |
+| GET | `/orders/{id}/files/payment-receipt|delivery-receipt/link` | buyer or seller; a 5-minute signed link to `/files/{token}` |
+| GET | `/files/{token}` | anyone holding a valid, unexpired link |
+
+**Notifications** (any signed-in user)
+| Method | Route | Access |
+|---|---|---|
+| GET | `/notifications`, `/notifications/unread-count` | 🔒 your latest 50, and the unread total |
+| POST | `/notifications/{id}/read`, `/notifications/read-all` | 🔒 your own only ||sale`, `/transactions/{id}` | 🔒 `transaction.view_own` |
 | POST | `/transactions` `{ productId }` | 🔒 `transaction.view_own`; reserves the item |
 | POST | `/transactions/{id}/complete`, `/transactions/{id}/cancel` | 🔒 `transaction.view_own` |
 
@@ -132,9 +157,13 @@ Errors use RFC 7807 problem details; validation errors list messages per field, 
 ## Behaviour notes
 
 - **Accounts are re-checked on every request.** A deactivated user, or one whose role changed, is rejected immediately even with an unexpired token.
-- **Purchases move no money.** Buying reserves the listing and records a "Meetup scheduled" transaction for the buyer (and a sale for the seller when the seller has an account). Completing marks the listing Sold; cancelling puts it back on the market. Two buyers can't reserve the same item at once.
+- **Orders follow one workflow.** Negotiating → Deal agreed → Payment pending → Payment verification pending → Payment confirmed → Shipped (delivery) or Ready for pickup → Delivered → Completed, or Cancelled if the buyer drops the reservation before paying. Every change is stored with its time and who made it (`OrderEvents`). The API decides which actions each party may take (`Orders/OrderActions.cs`): buyers can't confirm payment, sellers can't confirm delivery, and nothing can skip a stage. A product can have only one non-cancelled order (a unique database index), so it can't be reserved twice or sold twice, and concurrent changes are caught by a row version.
+- **No money moves through AgainBuy.** Buyers pay by bank transfer using the seller's saved bank details, which are shown only after both parties agree. Uploading a receipt never confirms payment; the seller confirms after checking their own account.
+- **Couriers aren't integrated.** Delivery listings name PickMe or Domex; the seller books the courier on its website and enters the tracking number, which buyers use on the courier's site. AgainBuy doesn't track parcels itself.
+- **Receipts are private.** Payment receipts and generated PDFs are stored in PostgreSQL (`OrderFiles`), never on Cloudinary, and are only served through short-lived signed links issued to the order's buyer or seller. Delivery receipts are rendered from the order's data with QuestPDF (free Community licence for businesses under USD 1M annual revenue).
+- **Seeded demo listings can't be reserved**, because their sellers have no accounts to agree a deal or confirm payment. Listings from real accounts (such as `mine_1`) can.
 - **Moderation removal is final for sellers.** A listing removed by a moderator can't be edited or reactivated by its owner.
-- **Listings carry category-specific details.** `specifications` is an ordered list of `{ key, label, value }` (up to 40, each value up to 200 characters), e.g. `{ "key": "storage", "label": "Storage capacity", "value": "256 GB" }`. Blank values and repeated keys are dropped. Which fields each category has, and which are required, is defined by the app (`frontend/src/config/listingFields.ts`); the API stores what it is sent. Listings also have `reasonForSelling` and `delivery` (`"Delivery"`, `"Meet-up"` or `"Both"`, default Meet-up). `brand` and `model` are optional, because not every category has them (books have neither).
+- **Listings carry category-specific details.** `specifications` is an ordered list of `{ key, label, value }` (up to 40, each value up to 200 characters), e.g. `{ "key": "storage", "label": "Storage capacity", "value": "256 GB" }`. Blank values and repeated keys are dropped. Which fields each category has, and which are required, is defined by the app (`frontend/src/config/listingFields.ts`); the API stores what it is sent. Listings also have `reasonForSelling` and `delivery` (`"Delivery"` or `"Meet-up"`, shown as Delivery Available / Pickup Only; default Meet-up) and, for delivery, `courier` (`"PickMe"` or `"Domex"`, required). `brand` and `model` are optional, because not every category has them (books have neither).
 - **Seeded sellers have no accounts.** The demo listings (`p1`–`p8`) belong to display-only sellers, so nobody can sign in to reply as them. Only the customer's own listing (`mine_1`) and new listings have a seller account behind them.
 - **Forgot password only logs the request.** No email provider is configured yet.
 - **Unused photos aren't cleaned up.** A photo uploaded and then removed before publishing stays in Cloudinary (tagged `againbuy`). Deleting listings doesn't delete their photos either.
@@ -149,11 +178,12 @@ The app in `frontend/` calls this API through `frontend/src/services/api.ts`, wh
 AgainBuy.Api/
   Program.cs            service wiring, JWT validation, policies, rate limiting, DB init
   Auth/                 permissions map, JWT options and token issuing
-  Controllers/          Auth, Products, Uploads, Wishlist, Conversations, Transactions, Categories, Admin
+  Controllers/          Auth, Products, Orders, Notifications, Files, Uploads, Wishlist, Conversations, Transactions, Categories, Admin
   Contracts/            request/response records and entity → DTO mapping
   Data/                 AppDbContext, demo seed data, Migrations/
   Domain/               entities and enums
   Images/               Cloudinary photo storage
+  Orders/               order rules (OrderActions), notifications, signed file links, PDF receipts
   Infrastructure/       small helpers (ids, enum parsing, rate-limit names)
 docker-compose.yml      local PostgreSQL
 dotnet-tools.json       pinned dotnet-ef tool

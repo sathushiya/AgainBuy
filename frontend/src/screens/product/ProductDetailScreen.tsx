@@ -13,31 +13,44 @@ export function ProductDetailScreen({ navigation, route }: { navigation: any; ro
   const id: string = route.params?.id;
   const { data: product, error, loading, setData } = useApiData(() => api.product(id), [id]);
   const { wishlist, toggleWishlist } = useApp();
-  const [purchase, setPurchase] = React.useState(false);
-  const [buying, setBuying] = React.useState(false);
+  const [confirmReserve, setConfirmReserve] = React.useState(false);
+  const [reserving, setReserving] = React.useState(false);
   const [notice, setNotice] = React.useState<{ ok: boolean; text: string } | null>(null);
 
   if (!product) return <ScreenContainer>{loading ? <LoadingIndicator/> : <EmptyState icon="search-outline" title="Product unavailable" message={error ?? "This listing could not be found."} action="Go back" onAction={() => navigation.goBack()}/>}</ScreenContainer>;
 
-  const buy = async () => {
-    setPurchase(false);
-    setBuying(true);
+  // Reserving starts a negotiation; it isn't a purchase, and the buyer can drop it before paying.
+  const reserve = async () => {
+    setConfirmReserve(false);
+    setReserving(true);
     try {
-      const order = await api.purchase(product.id);
-      setData({ ...product, status: "Reserved" });
-      setNotice({ ok: true, text: `Reserved for you (${order.id}). Arrange a meetup with ${product.seller}; no payment was processed.` });
+      const order = await api.reserve(product.id);
+      setData({ ...product, status: "Reserved", myOrderId: order.summary.id });
+      navigation.navigate("OrderDetail", { id: order.summary.id });
     } catch (caught) {
       setNotice({ ok: false, text: errorMessage(caught) });
     } finally {
-      setBuying(false);
+      setReserving(false);
     }
   };
+  const openOrder = () => navigation.navigate("OrderDetail", { id: product.myOrderId });
+
+  let primary: React.ReactNode;
+  if (product.myOrderId) primary = <PrimaryButton title="View my reservation" onPress={openOrder} style={styles.flex}/>;
+  else if (!product.hasSellerAccount || product.status !== "Active") primary = <PrimaryButton title={product.status === "Active" ? "Reserve" : product.status} disabled onPress={() => {}} style={styles.flex}/>;
+  else primary = <PrimaryButton title="Reserve" loading={reserving} onPress={() => setConfirmReserve(true)} style={styles.flex}/>;
 
   const actions = product.isOwn
     ? <View style={styles.success}><AppIcon name="information-circle-outline" size={22} color={colors.textSecondary}/><Text style={styles.ownText}>This is your listing. Manage it from My Listings.</Text></View>
-    : <View style={styles.actions}><SecondaryButton title="Chat with seller" icon={<AppIcon name="chatbubble-outline" size={19} color={colors.charcoal}/>} onPress={() => navigation.navigate("Conversation", { productId: product.id })} style={styles.flex}/><PrimaryButton title={product.status === "Active" ? "Buy now" : product.status} disabled={product.status !== "Active"} loading={buying} onPress={() => setPurchase(true)} style={styles.flex}/></View>;
+    : <View style={styles.actions}><SecondaryButton title="Chat with seller" icon={<AppIcon name="chatbubble-outline" size={19} color={colors.charcoal}/>} onPress={() => navigation.navigate("Conversation", { productId: product.id })} style={styles.flex}/>{primary}</View>;
+  const ownReservation = product.isOwn && product.myOrderId
+    ? <View style={styles.actions}><PrimaryButton title="View reservation" onPress={openOrder} style={styles.flex}/></View>
+    : null;
+  const sellerNote = !product.isOwn && !product.hasSellerAccount && product.status === "Active"
+    ? <Text style={styles.ownText}>This seller can't take reservations in the app yet. Chat with them to arrange the purchase.</Text>
+    : null;
 
-  return <ScreenContainer contentStyle={styles.noPad}><Gallery images={product.images.length ? product.images : [product.image]} title={product.title}/><View style={styles.floating}><Pressable onPress={() => navigation.goBack()} style={styles.round}><AppIcon name="arrow-back" size={21} color={colors.charcoal}/></Pressable><WishlistButton active={wishlist.includes(product.id)} onPress={() => toggleWishlist(product.id)}/></View><View style={styles.body}><View style={styles.badges}><ConditionBadge condition={product.condition}/>{product.status !== "Active" && <StatusBadge status={product.status}/>}</View><Text style={styles.title}>{product.title}</Text><PriceLabel price={product.price} original={product.originalPrice ?? undefined}/><Text style={styles.meta}>{product.usage} · Purchased {product.purchaseYear} · {product.location}</Text><View style={styles.seller}><Image source={{ uri: product.sellerAvatar }} style={styles.avatar}/><View style={styles.flex}><Text style={styles.sellerName}>{product.seller}</Text><Text style={styles.meta}>★ {product.sellerRating} · Verified community seller</Text></View><AppIcon name="chevron-forward" size={19} color={colors.textSecondary}/></View><DetailSection title="Product details">{product.brand ? <DetailRow label="Brand" value={product.brand}/> : null}{product.model ? <DetailRow label="Model" value={product.model}/> : null}<DetailRow label="Usage duration" value={product.usage}/><DetailRow label="Purchase year" value={String(product.purchaseYear)}/><DetailRow label="Handover" value={deliveryLabel(product.delivery)}/></DetailSection>{product.specifications.length > 0 && <DetailSection title="Specifications">{product.specifications.map((specification) => <DetailRow key={specification.key} label={specification.label} value={specification.value}/>)}</DetailSection>}<DetailSection title="Description"><Text style={styles.description}>{product.description}</Text></DetailSection>{product.reasonForSelling ? <DetailSection title="Reason for selling"><Text style={styles.description}>{product.reasonForSelling}</Text></DetailSection> : null}<View style={styles.defect}><AppIcon name="information-circle-outline" size={22} color={colors.warning}/><View style={styles.flex}><Text style={styles.defectTitle}>Known defects</Text><Text style={styles.description}>{product.defects}</Text></View></View><DetailSection title="Included & missing"><Text style={styles.description}>{product.accessories || "Not specified"}</Text></DetailSection><View style={styles.disclaimer}><AppIcon name="shield-checkmark-outline" size={22} color={colors.green}/><Text style={styles.disclaimerText}>Inspect the item and verify its condition before completing any local transaction.</Text></View>{notice && (notice.ok ? <View style={styles.success}><AppIcon name="checkmark-circle" size={22} color={colors.green}/><Text style={styles.successText}>{notice.text}</Text></View> : <View style={styles.notice}><ErrorMessage message={notice.text}/></View>)}{actions}</View><ConfirmDialog visible={purchase} title={`Buy ${product.title}?`} message={`This reserves the item for you at LKR ${product.price.toLocaleString()} and schedules a meetup with the seller. No payment is taken in the app.`} confirmLabel="Reserve item" onCancel={() => setPurchase(false)} onConfirm={buy}/></ScreenContainer>;
+  return <ScreenContainer contentStyle={styles.noPad}><Gallery images={product.images.length ? product.images : [product.image]} title={product.title}/><View style={styles.floating}><Pressable onPress={() => navigation.goBack()} style={styles.round}><AppIcon name="arrow-back" size={21} color={colors.charcoal}/></Pressable><WishlistButton active={wishlist.includes(product.id)} onPress={() => toggleWishlist(product.id)}/></View><View style={styles.body}><View style={styles.badges}><ConditionBadge condition={product.condition}/>{product.status !== "Active" && <StatusBadge status={product.status}/>}</View><Text style={styles.title}>{product.title}</Text><PriceLabel price={product.price} original={product.originalPrice ?? undefined}/><Text style={styles.meta}>{product.usage} · Purchased {product.purchaseYear} · {product.location}</Text><View style={styles.seller}><Image source={{ uri: product.sellerAvatar }} style={styles.avatar}/><View style={styles.flex}><Text style={styles.sellerName}>{product.seller}</Text><Text style={styles.meta}>★ {product.sellerRating} · Verified community seller</Text></View><AppIcon name="chevron-forward" size={19} color={colors.textSecondary}/></View><DetailSection title="Product details">{product.brand ? <DetailRow label="Brand" value={product.brand}/> : null}{product.model ? <DetailRow label="Model" value={product.model}/> : null}<DetailRow label="Usage duration" value={product.usage}/><DetailRow label="Purchase year" value={String(product.purchaseYear)}/><DetailRow label="Handover" value={`${deliveryLabel(product.delivery)}${product.courier ? ` · ${product.courier}` : ""}`}/></DetailSection>{product.specifications.length > 0 && <DetailSection title="Specifications">{product.specifications.map((specification) => <DetailRow key={specification.key} label={specification.label} value={specification.value}/>)}</DetailSection>}<DetailSection title="Description"><Text style={styles.description}>{product.description}</Text></DetailSection>{product.reasonForSelling ? <DetailSection title="Reason for selling"><Text style={styles.description}>{product.reasonForSelling}</Text></DetailSection> : null}<View style={styles.defect}><AppIcon name="information-circle-outline" size={22} color={colors.warning}/><View style={styles.flex}><Text style={styles.defectTitle}>Known defects</Text><Text style={styles.description}>{product.defects}</Text></View></View><DetailSection title="Included & missing"><Text style={styles.description}>{product.accessories || "Not specified"}</Text></DetailSection><View style={styles.disclaimer}><AppIcon name="shield-checkmark-outline" size={22} color={colors.green}/><Text style={styles.disclaimerText}>Inspect the item and verify its condition before completing any local transaction.</Text></View>{notice && (notice.ok ? <View style={styles.success}><AppIcon name="checkmark-circle" size={22} color={colors.green}/><Text style={styles.successText}>{notice.text}</Text></View> : <View style={styles.notice}><ErrorMessage message={notice.text}/></View>)}{actions}{ownReservation}{sellerNote}</View><ConfirmDialog visible={confirmReserve} title={`Reserve ${product.title}?`} message={`It's hidden from other buyers while you and ${product.seller} agree the price in chat. Reserving isn't buying: you can remove the reservation any time before you pay.`} confirmLabel="Reserve" onCancel={() => setConfirmReserve(false)} onConfirm={reserve}/></ScreenContainer>;
 }
 
 function Gallery({ images, title }: { images: string[]; title: string }) {

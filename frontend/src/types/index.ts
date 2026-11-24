@@ -3,7 +3,10 @@
 
 export type ProductCondition = "Like new" | "Excellent" | "Good" | "Fair";
 /** How the seller hands the item over; matches the chips on the Sell screen. */
-export type DeliveryOption = "Delivery" | "Meet-up" | "Both";
+export type DeliveryOption = "Delivery" | "Meet-up";
+
+/** Couriers a seller books on their own websites; AgainBuy doesn't integrate with them. */
+export type CourierService = "PickMe" | "Domex";
 
 /** One category-specific detail, e.g. { key: "storage", label: "Storage capacity", value: "256 GB" }. */
 export interface ProductSpecification {
@@ -55,11 +58,16 @@ export interface Product {
   /** Empty when the seller didn't give one. */
   reasonForSelling: string;
   delivery: DeliveryOption;
+  courier: CourierService | null;
   /** In the order the Sell screen showed them; empty for older listings. */
   specifications: ProductSpecification[];
   listedAt: string;
   status: ListingStatus;
   isOwn: boolean;
+  /** False for demo sellers without accounts, who can't take reservations. */
+  hasSellerAccount: boolean;
+  /** The viewer's live order for this product (as buyer or seller), from the detail endpoint. */
+  myOrderId?: string | null;
 }
 
 export interface ListingInput {
@@ -78,6 +86,7 @@ export interface ListingInput {
   accessories?: string;
   reasonForSelling?: string;
   delivery?: DeliveryOption;
+  courier?: CourierService;
   specifications?: ProductSpecification[];
   location: string;
   images?: string[];
@@ -189,6 +198,8 @@ export interface AccountSettings {
   notifyNews: boolean;
   /** Reusable pickup spots; the first one prefills the Sell form. */
   savedLocations: string[];
+  /** Shown to buyers once a deal is agreed. */
+  bankDetails: string;
 }
 
 export type SupportTicketType = "problem" | "contact";
@@ -199,4 +210,84 @@ export interface SupportTicket {
   subject: string;
   status: "Open" | "Closed";
   createdAt: string;
+}
+
+// ---- Orders: reserve → negotiate → pay → deliver ----------------------------
+
+export type OrderStatus =
+  | "Negotiating" | "Deal agreed" | "Payment pending" | "Payment verification pending" | "Payment confirmed"
+  | "Shipped" | "Ready for pickup" | "Delivered" | "Completed" | "Cancelled";
+
+/** What the signed-in user may do now; the API enforces the same rules. */
+export type OrderAction =
+  | "proposePrice" | "agree" | "cancel" | "uploadReceipt" | "confirmPayment" | "rejectPayment"
+  | "ship" | "readyForPickup" | "confirmDelivery";
+
+export interface OrderParty {
+  id: string;
+  name: string;
+  avatar: string;
+  location: string;
+}
+
+export interface OrderSummary {
+  id: string;
+  productId: string;
+  productTitle: string;
+  productImage: string;
+  status: OrderStatus;
+  isBuyer: boolean;
+  otherParty: OrderParty;
+  agreedPrice: number;
+  deliveryMethod: DeliveryOption;
+  courier: CourierService | null;
+  createdAt: string;
+  updatedAt: string;
+  hasDeliveryReceipt: boolean;
+}
+
+export interface OrderEvent {
+  status: OrderStatus;
+  note: string;
+  at: string;
+  actorName: string | null;
+}
+
+export interface OrderDetail {
+  summary: OrderSummary;
+  buyer: OrderParty;
+  seller: OrderParty;
+  listingPrice: number;
+  buyerAgreedAt: string | null;
+  sellerAgreedAt: string | null;
+  /** The seller's bank details; empty for the buyer until the deal is agreed. */
+  paymentInstructions: string;
+  paymentReference: string;
+  paymentSubmittedAt: string | null;
+  paymentConfirmedAt: string | null;
+  hasPaymentReceipt: boolean;
+  trackingNumber: string;
+  deliveryNotes: string;
+  dispatchedAt: string | null;
+  deliveredAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  deliveryReceiptNumber: string | null;
+  conversationId: string | null;
+  history: OrderEvent[];
+  actions: OrderAction[];
+}
+
+export type NotificationType =
+  | "Reserved" | "ReservationCancelled" | "PriceChanged" | "DealAgreed" | "PaymentSubmitted" | "PaymentConfirmed"
+  | "PaymentRejected" | "Shipped" | "ReadyForPickup" | "ReceiptGenerated" | "Delivered" | "Completed";
+
+export interface AppNotification {
+  id: number;
+  type: NotificationType;
+  title: string;
+  body: string;
+  orderId: string | null;
+  createdAt: string;
+  read: boolean;
 }

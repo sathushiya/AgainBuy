@@ -30,13 +30,35 @@ public class ListingDeliveryTests
 
         var body = Listing();
         body["reasonForSelling"] = "  Upgraded to an electric guitar  ";
-        body["delivery"] = "Both";
+        body["delivery"] = "Delivery";
+        body["courier"] = "Domex";
         var created = await (await customer.PostAsJsonAsync("/api/products", body)).Read<ProductDto>();
         Assert.Equal("Upgraded to an electric guitar", created.ReasonForSelling);
-        Assert.Equal(DeliveryOption.Both, created.Delivery);
+        Assert.Equal(DeliveryOption.Delivery, created.Delivery);
+        Assert.Equal(CourierService.Domex, created.Courier);
 
         var json = await (await customer.GetAsync($"/api/products/{created.Id}")).Content.ReadAsStringAsync();
-        Assert.Contains("\"delivery\":\"Both\"", json);
+        Assert.Contains("\"delivery\":\"Delivery\",\"courier\":\"Domex\"", json);
+    }
+
+    [Fact]
+    public async Task Delivery_needs_a_courier_and_pickup_ignores_one()
+    {
+        await using var factory = new ApiFactory();
+        var customer = await factory.Customer();
+
+        var noCourier = Listing();
+        noCourier["delivery"] = "Delivery";
+        Assert.Equal(HttpStatusCode.BadRequest, (await customer.PostAsJsonAsync("/api/products", noCourier)).StatusCode);
+
+        var pickup = Listing();
+        pickup["delivery"] = "Meet-up";
+        pickup["courier"] = "PickMe";
+        Assert.Null((await (await customer.PostAsJsonAsync("/api/products", pickup)).Read<ProductDto>()).Courier);
+
+        var both = Listing();
+        both["delivery"] = "Both";
+        Assert.Equal(HttpStatusCode.BadRequest, (await customer.PostAsJsonAsync("/api/products", both)).StatusCode);
     }
 
     [Fact]

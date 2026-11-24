@@ -14,12 +14,13 @@ Start with task-relevant files below. Only follow imports or inspect other files
 
 Frontend (`frontend/`):
 - `index.ts` / `App.tsx` - Expo entrypoint and root component (navigation, providers)
-- `src/screens/` - Screens grouped by feature; `src/navigation/` - customer and admin navigators
+- `src/screens/` - Screens grouped by feature; `src/screens/orders/` - order dashboards and order detail (negotiation, payment, delivery); `src/screens/notifications/` - in-app notifications; `src/navigation/` - customer and admin navigators
 - `src/components/` - Shared UI; `src/theme/index.ts` - brand colours and typography
-- `src/context/AppContext.tsx` - Session and wishlist state
+- `src/context/AppContext.tsx` - Session and wishlist state, unread message and notification counts
 - `src/services/api.ts` - Typed client for every API endpoint; `src/services/authService.ts` - sign-in; `src/config/apiUrl.ts` - API address
 - `src/services/photos.ts` - Picks, resizes and uploads listing photos
 - `src/config/listingFields.ts` - Category-specific Sell fields: one config per category (and subtype) drives the details step, its validation and the saved specifications; `pnpm test:fields` checks it
+- `src/utils/orders.ts` - Order steps, dashboard sections and next-step hints; `src/components/orders.tsx` - order timeline; `src/config/couriers.ts` - PickMe and Domex links
 - `src/hooks/useApiData.ts` - Loads API data per screen and refreshes on focus; `src/data/demoUsers.ts` - demo credentials shown on the login screen
 - `src/config/permissions.ts` - Role permissions (mirrored by `backend/AgainBuy.Api/Auth/Permissions.cs`)
 - `src/types/index.ts` - Shared types (the API's JSON matches these)

@@ -42,6 +42,7 @@ public class AccountController(AppDbContext db) : ControllerBase
         user.NotifyOrders = request.NotifyOrders;
         user.NotifyNews = request.NotifyNews;
         user.SavedLocations = locations;
+        if (request.BankDetails is not null) user.BankDetails = request.BankDetails.Trim();
         await db.SaveChangesAsync(cancellationToken);
         return user.ToSettingsDto();
     }

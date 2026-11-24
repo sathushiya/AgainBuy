@@ -1,7 +1,7 @@
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { Platform } from "react-native";
-import { api } from "./api";
+import { api, type UploadFile } from "./api";
 
 const MAX_SIDE = 1600;
 
@@ -23,12 +23,16 @@ export async function pickPhotos(limit: number) {
  * on mobile data. Resolves to the hosted image URL.
  */
 export async function uploadPhoto(asset: ImagePicker.ImagePickerAsset): Promise<string> {
+  return (await api.uploadImage(await photoFile(asset))).url;
+}
+
+/** A picked photo, shrunk and re-encoded as JPEG, ready to send in a form (also used for payment receipts). */
+export async function photoFile(asset: ImagePicker.ImagePickerAsset, prefix = "photo"): Promise<UploadFile> {
   const prepared = await shrink(asset);
-  const name = `photo-${Date.now()}.jpg`;
-  const file = Platform.OS === "web"
+  const name = `${prefix}-${Date.now()}.jpg`;
+  return Platform.OS === "web"
     ? { webFile: await (await fetch(prepared)).blob(), name }
     : { uri: prepared, name, type: "image/jpeg" };
-  return (await api.uploadImage(file)).url;
 }
 
 async function shrink(asset: ImagePicker.ImagePickerAsset) {

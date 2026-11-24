@@ -19,6 +19,9 @@ public class User
 
     // Pickup spots the user reuses when listing items; the first is the default.
     public List<string> SavedLocations { get; set; } = [];
+
+    // Bank transfer details buyers see once a deal is agreed (sellers only need these).
+    public string BankDetails { get; set; } = "";
 }
 
 public class Category
@@ -57,6 +60,9 @@ public class Product
     public string Accessories { get; set; } = "";
     public string ReasonForSelling { get; set; } = "";
     public DeliveryOption Delivery { get; set; } = DeliveryOption.MeetUp;
+
+    // Only set for Delivery listings; the seller books it on the courier's own website.
+    public CourierService? Courier { get; set; }
 
     // Category-specific details (e.g. Storage capacity, Battery health), in the
     // order the app showed them. Stored as one JSON column.

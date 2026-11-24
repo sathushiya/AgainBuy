@@ -41,6 +41,20 @@ public class AccountSettingsTests
     }
 
     [Fact]
+    public async Task Bank_details_are_saved_and_kept_when_not_sent()
+    {
+        await using var factory = new ApiFactory();
+        var customer = await factory.Customer();
+
+        await customer.PutAsJsonAsync("/api/account/settings", new { notifyMessages = true, notifyOrders = true, notifyNews = false, savedLocations = Array.Empty<string>(), bankDetails = " Maya Perera\nCommercial Bank 8012345678\nColombo 05 branch " });
+        await customer.PutAsJsonAsync("/api/account/settings", new { notifyMessages = false, notifyOrders = true, notifyNews = false, savedLocations = Array.Empty<string>() });
+
+        var settings = await (await customer.GetAsync("/api/account/settings")).Read<AccountSettingsDto>();
+        Assert.Equal("Maya Perera\nCommercial Bank 8012345678\nColombo 05 branch", settings.BankDetails);
+        Assert.False(settings.NotifyMessages);
+    }
+
+    [Fact]
     public async Task Too_many_or_too_short_locations_are_rejected()
     {
         await using var factory = new ApiFactory();

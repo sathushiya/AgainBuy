@@ -39,13 +39,14 @@ public class ProductsController(AppDbContext db, IOptions<CloudinaryOptions> clo
 
         if (!string.IsNullOrWhiteSpace(status))
         {
-            if (!EnumNames.TryParse<ListingStatus>(status, out var listingStatus) || listingStatus == ListingStatus.Inactive)
-                return InvalidQuery(nameof(status), "Use Active, Reserved or Sold.");
+            if (!EnumNames.TryParse<ListingStatus>(status, out var listingStatus) || listingStatus is ListingStatus.Inactive or ListingStatus.Reserved)
+                return InvalidQuery(nameof(status), "Use Active or Sold.");
             query = query.Where(product => product.Status == listingStatus);
         }
         else
         {
-            query = query.Where(product => product.Status != ListingStatus.Sold);
+            // Reserved items are hidden until the buyer completes or drops the reservation.
+            query = query.Where(product => product.Status == ListingStatus.Active);
         }
 
         if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All", StringComparison.OrdinalIgnoreCase))
@@ -92,7 +93,10 @@ public class ProductsController(AppDbContext db, IOptions<CloudinaryOptions> clo
         var viewerId = User.UserId();
         var product = await db.Products.AsNoTracking().SingleOrDefaultAsync(candidate => candidate.Id == id, cancellationToken);
         if (product is null || (product.Status == ListingStatus.Inactive && product.SellerId != viewerId)) return NotFound();
-        return product.ToDto(viewerId);
+        var myOrderId = await db.Orders
+            .Where(order => order.ProductId == id && order.Status != OrderStatus.Cancelled && (order.BuyerId == viewerId || order.SellerId == viewerId))
+            .Select(order => order.Id).FirstOrDefaultAsync(cancellationToken);
+        return product.ToDto(viewerId) with { MyOrderId = myOrderId };
     }
 
     [HttpGet("mine")]
@@ -146,6 +150,8 @@ public class ProductsController(AppDbContext db, IOptions<CloudinaryOptions> clo
         if (product is null) return NotFound();
         if (product.Status == ListingStatus.Sold)
             return Problem(statusCode: StatusCodes.Status409Conflict, title: "Sold listings cannot be deactivated.");
+        if (product.Status == ListingStatus.Reserved)
+            return Problem(statusCode: StatusCodes.Status409Conflict, title: "This item is reserved. You can deactivate it once the buyer removes their reservation.");
 
         product.Status = ListingStatus.Inactive;
         await db.SaveChangesAsync(cancellationToken);
@@ -211,6 +217,8 @@ public class ProductsController(AppDbContext db, IOptions<CloudinaryOptions> clo
             errors["purchaseYear"] = ["Purchase year cannot be in the future."];
         if (request.OriginalPrice is { } original && original < request.Price)
             errors["originalPrice"] = ["Original price should not be lower than the selling price."];
+        if (request.Delivery == DeliveryOption.Delivery && request.Courier is null)
+            errors["courier"] = ["Choose PickMe or Domex for delivery."];
         if (request.Images?.Any(image => !ImageUrls.IsAllowed(image, cloudinary.Value)) == true)
             errors["images"] = [cloudinary.Value.IsComplete ? "Upload photos through the app; outside image links are not allowed." : "Images must be absolute http(s) URLs."];
 
@@ -233,6 +241,7 @@ public class ProductsController(AppDbContext db, IOptions<CloudinaryOptions> clo
         product.Accessories = request.Accessories?.Trim() ?? "";
         product.ReasonForSelling = request.ReasonForSelling?.Trim() ?? "";
         product.Delivery = request.Delivery ?? DeliveryOption.MeetUp;
+        product.Courier = product.Delivery == DeliveryOption.Delivery ? request.Courier : null;
         // Keep the app's order; drop blank values and repeated keys.
         product.Specifications = (request.Specifications ?? [])
             .Select(specification => new ProductSpecification(specification.Key.Trim(), specification.Label.Trim(), specification.Value.Trim()))

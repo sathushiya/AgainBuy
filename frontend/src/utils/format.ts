@@ -37,5 +37,5 @@ export function messageTime(iso: string, now = new Date()) {
 
 /** Buyer-facing wording for a listing's delivery option. */
 export function deliveryLabel(delivery: DeliveryOption) {
-  return delivery === "Delivery" ? "Delivery available" : delivery === "Meet-up" ? "Pickup only" : "Delivery or pickup";
+  return delivery === "Delivery" ? "Delivery available" : "Pickup only";
 }
