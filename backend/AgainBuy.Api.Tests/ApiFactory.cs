@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AgainBuy.Api.Assistant;
 using AgainBuy.Api.Contracts;
 using AgainBuy.Api.Data;
 using AgainBuy.Api.Images;
@@ -35,17 +36,24 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Jwt:Key", "integration-test-signing-key-0123456789abcdef");
         builder.UseSetting("Database:SeedDemoData", "true");
         builder.UseSetting("RateLimiting:AuthPermitPerMinute", "1000");
+        builder.UseSetting("RateLimiting:AssistantPerMinute", "1000");
         if (CloudName is not null)
         {
             builder.UseSetting("Cloudinary:CloudName", CloudName);
             builder.UseSetting("Cloudinary:ApiKey", "test-key");
             builder.UseSetting("Cloudinary:ApiSecret", "test-secret");
         }
-        // Never call the real Cloudinary from tests.
-        builder.ConfigureTestServices(services => services.AddSingleton<IImageStorage>(Images));
+        // Never call the real Cloudinary or Groq from tests.
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<IImageStorage>(Images);
+            services.AddSingleton<IChatModel>(Chat);
+        });
     }
 
     public FakeImageStorage Images { get; } = new();
+
+    public FakeChatModel Chat { get; } = new();
 
     /// <summary>Set to simulate a server with Cloudinary credentials configured.</summary>
     public string? CloudName { get; init; }

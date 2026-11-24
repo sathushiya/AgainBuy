@@ -80,6 +80,7 @@ Permissions are centralized in `src/config/permissions.ts`. The API enforces the
 - Reserving instead of buying: a reserved item leaves browsing, and buyer and seller work through negotiation → deal agreed (both agree) → bank-transfer payment with an uploaded receipt that the seller verifies → shipped with tracking or ready for pickup → delivered (confirmed by the buyer) → completed
 - Order dashboards: "My orders" for buyers and "Reserved by customers" for sellers, with a timeline, full history, chat, and a downloadable PDF delivery receipt
 - In-app notifications for every order step, with an unread badge on the Profile tab
+- AgainBuy assistant (Groq): ask about a listing from its product page, or about buying, selling, payment and safety from Settings & Help
 - Purchase and sales history
 - Settings & Help: profile and photo, password change, notification preferences, bank transfer details (for sellers), saved pickup locations, buying and selling guides, and support requests
 - API sign-in for Customer and Administrator

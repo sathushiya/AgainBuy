@@ -51,10 +51,13 @@ It's applied automatically on the next start.
 | `Cors:Origins` | Allowed browser origins (Expo web) | `localhost:8081`, `19006` |
 | `RateLimiting:AuthPermitPerMinute` | Requests per IP per minute to `/api/auth/*` | `10` |
 | `RateLimiting:UploadsPerMinute` | Photo uploads per user per minute | `30` |
+| `RateLimiting:AssistantPerMinute` | Assistant questions per user per minute | `12` |
 | `Cloudinary:CloudName`, `Cloudinary:ApiKey`, `Cloudinary:ApiSecret` | Cloudinary credentials for listing photos. If any is missing, the API still runs but `/api/uploads/images` answers 503. **Never commit these.** | empty |
 | `Cloudinary:Folder` | Cloudinary folder for listing photos | `againbuy/listings` |
+| `Groq:ApiKey` | Groq API key for the shopping assistant. If missing, the API still runs but `/api/assistant/chat` answers 503. **Never commit it.** | empty |
+| `Groq:Model` | Groq model the assistant uses (see https://console.groq.com/docs/models) | `openai/gpt-oss-20b` |
 
-Use environment variables in production, e.g. `Jwt__Key=...`, `ConnectionStrings__Default=...`, `Cloudinary__ApiSecret=...`.
+Use environment variables in production, e.g. `Jwt__Key=...`, `ConnectionStrings__Default=...`, `Cloudinary__ApiSecret=...`, `Groq__ApiKey=...`.
 
 ### Setting up Cloudinary (photo uploads)
 
@@ -70,6 +73,17 @@ Use environment variables in production, e.g. `Jwt__Key=...`, `ConnectionStrings
 3. Restart the API.
 
 How it works: the app shrinks each photo to 1600px JPEG and sends it to `POST /api/uploads/images`. The API checks that it's a real image (by its bytes), limits it to 10 MB, and uploads it to Cloudinary. Cloudinary caps the size again and strips metadata such as GPS location. The API returns the photo's URL, and the listing stores only that URL in PostgreSQL. With Cloudinary configured, listings only accept photos from your own Cloudinary account.
+
+### Setting up Groq (shopping assistant)
+
+1. Create a key at https://console.groq.com under **API Keys** (the free plan is enough for development).
+2. Store it in user-secrets from `backend/`, never in `appsettings.json`:
+   ```
+   dotnet user-secrets set "Groq:ApiKey" "gsk_..." --project AgainBuy.Api
+   ```
+3. Restart the API.
+
+How it works: the app keeps the chat and sends it (latest 10 turns, each up to 1,000 characters) to `POST /api/assistant/chat`, with the product ID when asked from a product page. The API adds the app guide (`Assistant/AssistantPrompt.cs`) and that listing's details, calls Groq, and returns the reply. Nothing is stored. When the app's features or rules change, update the guide too.
 
 ## Endpoints
 
@@ -139,6 +153,11 @@ All routes are under `/api`. A 🔒 means a bearer token is required; the policy
 | POST | `/support/tickets` `{ type: "problem" \| "contact", subject, message }` | 🔒 any role |
 | GET | `/support/tickets` | 🔒 any role; your own requests only |
 
+**Assistant**
+| Method | Route | Access |
+|---|---|---|
+| POST | `/assistant/chat` `{ messages: [{ role, content }], productId? }` | 🔒 any role; 503 if Groq isn't set up or is busy, 502 if it fails |
+
 **Administration** (admin)
 | Method | Route | Access |
 |---|---|---|
@@ -165,6 +184,7 @@ Errors use RFC 7807 problem details; validation errors list messages per field, 
 - **Moderation removal is final for sellers.** A listing removed by a moderator can't be edited or reactivated by its owner.
 - **Listings carry category-specific details.** `specifications` is an ordered list of `{ key, label, value }` (up to 40, each value up to 200 characters), e.g. `{ "key": "storage", "label": "Storage capacity", "value": "256 GB" }`. Blank values and repeated keys are dropped. Which fields each category has, and which are required, is defined by the app (`frontend/src/config/listingFields.ts`); the API stores what it is sent. Listings also have `reasonForSelling` and `delivery` (`"Delivery"` or `"Meet-up"`, shown as Delivery Available / Pickup Only; default Meet-up) and, for delivery, `courier` (`"PickMe"` or `"Domex"`, required). `brand` and `model` are optional, because not every category has them (books have neither).
 - **Seeded sellers have no accounts.** The demo listings (`p1`–`p8`) belong to display-only sellers, so nobody can sign in to reply as them. Only the customer's own listing (`mine_1`) and new listings have a seller account behind them.
+- **The assistant only knows what it is told.** It answers from the app guide and the listing's details; it can't see orders or accounts. Seller-written listing text is fenced and marked as data in the prompt, so a description can't give the model instructions. Answers can still be wrong, which the app says on the chat screen.
 - **Forgot password only logs the request.** No email provider is configured yet.
 - **Unused photos aren't cleaned up.** A photo uploaded and then removed before publishing stays in Cloudinary (tagged `againbuy`). Deleting listings doesn't delete their photos either.
 
@@ -178,7 +198,8 @@ The app in `frontend/` calls this API through `frontend/src/services/api.ts`, wh
 AgainBuy.Api/
   Program.cs            service wiring, JWT validation, policies, rate limiting, DB init
   Auth/                 permissions map, JWT options and token issuing
-  Controllers/          Auth, Products, Orders, Notifications, Files, Uploads, Wishlist, Conversations, Transactions, Categories, Admin
+  Assistant/            Groq chat client and the assistant's app guide
+  Controllers/          Auth, Products, Orders, Notifications, Files, Uploads, Wishlist, Conversations, Transactions, Categories, Assistant, Admin
   Contracts/            request/response records and entity → DTO mapping
   Data/                 AppDbContext, demo seed data, Migrations/
   Domain/               entities and enums

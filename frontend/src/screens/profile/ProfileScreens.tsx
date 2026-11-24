@@ -36,7 +36,7 @@ export function MyListingsScreen({ navigation }: { navigation: any }) {
 
 // Each row opens its own page; route names are registered in CustomerNavigator.
 const ACCOUNT_SETTINGS = [["Personal information", "PersonalInfo"], ["Notification preferences", "NotificationPreferences"], ["Privacy and safety", "PrivacySafety"], ["Saved locations", "SavedLocations"], ["Bank transfer details", "BankDetails"]] as const;
-const SUPPORT_SETTINGS = [["Buying safely", "BuyingSafely"], ["Selling guidelines", "SellingGuidelines"], ["Report a problem", "ReportProblem"], ["Contact support", "ContactSupport"]] as const;
+const SUPPORT_SETTINGS = [["Ask the AgainBuy assistant", "Assistant"], ["Buying safely", "BuyingSafely"], ["Selling guidelines", "SellingGuidelines"], ["Report a problem", "ReportProblem"], ["Contact support", "ContactSupport"]] as const;
 
 export function SettingsScreen({ navigation }: { navigation: any }) {
   return <ScreenContainer><Text style={styles.pageTitle}>Settings & Help</Text><Text style={styles.meta}>Account preferences and marketplace support</Text><SectionHeader title="Account"/>{ACCOUNT_SETTINGS.map(([label, route]) => <Setting key={label} label={label} onPress={() => navigation.navigate(route)}/>)}<SectionHeader title="Support"/>{SUPPORT_SETTINGS.map(([label, route]) => <Setting key={label} label={label} onPress={() => navigation.navigate(route)}/>)}<View style={styles.help}><AppIcon name="shield-checkmark-outline" size={24} color={colors.green}/><View style={styles.flex}><Text style={styles.helpTitle}>Stay safe when meeting</Text><Text style={styles.helpText}>Meet in a public place, inspect the product, and never send advance payments to unknown sellers.</Text></View></View></ScreenContainer>;

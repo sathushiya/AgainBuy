@@ -2,7 +2,7 @@ import { API_URL } from "../config/apiUrl";
 import type {
   AccountSettings, AdminStats, AppUser, AuthResponse, Category, Conversation, ConversationDetail, Facility, ListingInput, Message,
   ModerationCase, PagedResult, PlatformUser, Product, SupportTicket, SupportTicketType, Transaction, UserRole, AccountStatus,
-  AppNotification, CourierService, OrderDetail, OrderSummary,
+  AppNotification, AssistantTurn, CourierService, OrderDetail, OrderSummary,
 } from "../types";
 
 /** A local file to upload: a URI on native, a Blob on web. */
@@ -161,6 +161,9 @@ export const api = {
   notificationUnreadCount: () => request<{ count: number }>("GET", "/api/notifications/unread-count"),
   markNotificationRead: (id: number) => request<void>("POST", `/api/notifications/${id}/read`),
   markAllNotificationsRead: () => request<void>("POST", "/api/notifications/read-all"),
+
+  /** Asks the shopping assistant; pass the whole chat so far, ending with the new question. */
+  askAssistant: (messages: AssistantTurn[], productId?: string) => request<{ reply: string }>("POST", "/api/assistant/chat", { body: { messages, productId } }),
 
   // Administration
   adminStats: () => request<AdminStats>("GET", "/api/admin/stats"),
