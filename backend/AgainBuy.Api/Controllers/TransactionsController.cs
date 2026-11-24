@@ -9,12 +9,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AgainBuy.Api.Controllers;
 
-// No money moves through AgainBuy: a purchase reserves the listing and
-// schedules a meetup; either party then completes or cancels it.
+// Purchase and sale history. New purchases go through OrdersController
+// (reserve → agree → pay → deliver), which adds rows here on completion.
+// Complete and cancel remain for older meetup-scheduled records.
 [ApiController]
 [Route("api/transactions")]
 [Authorize(Policy = Permissions.TransactionViewOwn)]
-public class TransactionsController(AppDbContext db, TimeProvider time) : ControllerBase
+public class TransactionsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<TransactionDto>>> List([FromQuery] string? type, CancellationToken cancellationToken)
@@ -40,50 +41,6 @@ public class TransactionsController(AppDbContext db, TimeProvider time) : Contro
         var transaction = await db.Transactions.AsNoTracking().Include(candidate => candidate.Product)
             .SingleOrDefaultAsync(candidate => candidate.Id == id && candidate.UserId == userId, cancellationToken);
         return transaction is null ? NotFound() : transaction.ToDto();
-    }
-
-    [HttpPost]
-    public async Task<ActionResult<TransactionDto>> Purchase(PurchaseRequest request, CancellationToken cancellationToken)
-    {
-        var buyer = await db.Users.FindAsync([User.UserId()], cancellationToken);
-        if (buyer is null) return Unauthorized();
-
-        var product = await db.Products.SingleOrDefaultAsync(candidate => candidate.Id == request.ProductId, cancellationToken);
-        if (product is null || product.Status == ListingStatus.Inactive) return NotFound();
-        if (product.SellerId == buyer.Id)
-            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "You cannot buy your own listing.");
-
-        await using var dbTransaction = await db.Database.BeginTransactionAsync(cancellationToken);
-
-        // Conditional update so two buyers racing for the same item cannot both win.
-        var reserved = await db.Products
-            .Where(candidate => candidate.Id == product.Id && candidate.Status == ListingStatus.Active)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(candidate => candidate.Status, ListingStatus.Reserved), cancellationToken);
-        if (reserved == 0)
-            return Problem(statusCode: StatusCodes.Status409Conflict, title: "This item is no longer available.");
-
-        var orderId = Ids.New("TX-");
-        var now = time.GetUtcNow().UtcDateTime;
-        var purchase = new Transaction
-        {
-            Id = orderId, OrderId = orderId, UserId = buyer.Id, ProductId = product.Id, Product = product, Type = TransactionType.Purchase,
-            Party = product.SellerName, Amount = product.Price, Date = now, Status = TransactionStatus.MeetupScheduled,
-        };
-        db.Transactions.Add(purchase);
-
-        if (product.SellerId is not null)
-        {
-            db.Transactions.Add(new Transaction
-            {
-                Id = Ids.New("TX-"), OrderId = orderId, UserId = product.SellerId, ProductId = product.Id, Type = TransactionType.Sale,
-                Party = buyer.Name, Amount = product.Price, Date = now, Status = TransactionStatus.MeetupScheduled,
-            });
-        }
-
-        await db.SaveChangesAsync(cancellationToken);
-        await dbTransaction.CommitAsync(cancellationToken);
-
-        return CreatedAtAction(nameof(Get), new { id = purchase.Id }, purchase.ToDto());
     }
 
     [HttpPost("{id}/complete")]

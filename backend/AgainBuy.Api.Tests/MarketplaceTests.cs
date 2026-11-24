@@ -33,7 +33,8 @@ public class MarketplaceTests
         var customer = await factory.Customer();
 
         var all = await (await customer.GetAsync("/api/products?pageSize=50")).Read<PagedResult<ProductDto>>();
-        Assert.Equal(9, all.Total);
+        // p4 is seeded as Reserved, so it is hidden from browsing.
+        Assert.Equal(8, all.Total);
         Assert.DoesNotContain(all.Items, product => product.Status == ListingStatus.Inactive);
 
         var likeNew = await (await customer.GetAsync("/api/products?condition=Like%20new")).Read<PagedResult<ProductDto>>();

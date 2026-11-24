@@ -39,7 +39,11 @@ public record ProductDto(
     string Id, string Title, string Category, decimal Price, decimal? OriginalPrice, string Image, IReadOnlyList<string> Images,
     ProductCondition Condition, string Usage, int PurchaseYear, string Location, string Seller, string SellerAvatar, double SellerRating,
     string Brand, string Model, string Description, string Defects, string Accessories, string ReasonForSelling, DeliveryOption Delivery, CourierService? Courier,
-    IReadOnlyList<ProductSpecification> Specifications, DateTime ListedAt, ListingStatus Status, bool IsOwn);
+    IReadOnlyList<ProductSpecification> Specifications, DateTime ListedAt, ListingStatus Status, bool IsOwn,
+    // Reserving needs a seller account (seeded demo sellers have none).
+    bool HasSellerAccount,
+    // The viewer's live order for this product (as buyer or seller), on the detail endpoint only.
+    string? MyOrderId = null);
 
 // Mirrors the Sell screen's zod schema in frontend/src/screens/sell/SellScreen.tsx.
 public record UpsertListingRequest(
@@ -93,7 +97,6 @@ public record SendMessageRequest([MaxLength(2000)] string? Body, [MaxLength(2048
 
 public record TransactionDto(string Id, string ProductId, string ProductTitle, string ProductImage, TransactionType Type, string Party, decimal Amount, DateTime Date, TransactionStatus Status);
 
-public record PurchaseRequest([Required] string ProductId);
 
 public record PlatformUserDto(string Id, string Name, string Email, UserRole Role, AccountStatus Status, DateTime Joined);
 
@@ -126,3 +129,25 @@ public record ModerationCaseDto(string Id, string? ProductId, string Title, stri
 public record ActivityDto(string Description, DateTime At);
 
 public record AdminStatsDto(int TotalUsers, int ActiveCustomers, int Facilities, int ActiveListings, int PendingReviews, int ReportsAndFlags, IReadOnlyList<ActivityDto> RecentActivity);
+
+// ---- Orders (reserve → negotiate → pay → deliver) -------------------------
+
+public record OrderPartyDto(string Id, string Name, string Avatar, string Location);
+
+public record OrderSummaryDto(
+    string Id, string ProductId, string ProductTitle, string ProductImage, OrderStatus Status, bool IsBuyer,
+    OrderPartyDto OtherParty, decimal AgreedPrice, DeliveryOption DeliveryMethod, CourierService? Courier,
+    DateTime CreatedAt, DateTime UpdatedAt, bool HasDeliveryReceipt);
+
+public record OrderEventDto(OrderStatus Status, string Note, DateTime At, string? ActorName);
+
+public record OrderDetailDto(
+    OrderSummaryDto Summary, OrderPartyDto Buyer, OrderPartyDto Seller, decimal ListingPrice,
+    DateTime? BuyerAgreedAt, DateTime? SellerAgreedAt,
+    string PaymentInstructions, string PaymentReference, DateTime? PaymentSubmittedAt, DateTime? PaymentConfirmedAt, bool HasPaymentReceipt,
+    string TrackingNumber, string DeliveryNotes, DateTime? DispatchedAt, DateTime? DeliveredAt, DateTime? CompletedAt, DateTime? CancelledAt,
+    string? DeliveryReceiptNumber, string? ConversationId, IReadOnlyList<OrderEventDto> History,
+    // What the signed-in user may do now, e.g. "agree", "confirmPayment". The API enforces the same rules.
+    IReadOnlyList<string> Actions);
+
+public record ReserveRequest([Required] string ProductId);

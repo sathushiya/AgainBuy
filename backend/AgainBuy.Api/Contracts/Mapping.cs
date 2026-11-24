@@ -19,7 +19,7 @@ public static class Mapping
         product.Images.Count > 0 ? product.Images : [product.Image],
         product.Condition, product.Usage, product.PurchaseYear, product.Location, product.SellerName, product.SellerAvatar,
         product.SellerRating, product.Brand, product.Model, product.Description, product.Defects, product.Accessories, product.ReasonForSelling, product.Delivery, product.Courier, product.Specifications,
-        product.ListedAt, product.Status, viewerId is not null && product.SellerId == viewerId);
+        product.ListedAt, product.Status, viewerId is not null && product.SellerId == viewerId, product.SellerId != null);
 
     public static TransactionDto ToDto(this Transaction transaction) => new(
         transaction.Id, transaction.ProductId, transaction.Product?.Title ?? "", transaction.Product?.Image ?? "",
