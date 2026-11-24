@@ -1,6 +1,6 @@
 import React from "react";
 import { AccessibilityInfo, Animated, Easing, LayoutChangeEvent, Platform, StyleSheet, Text, View } from "react-native";
-import Svg, { Circle, Ellipse, G, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Ellipse, Path, Rect } from "react-native-svg";
 import { colors, radius, typography } from "../theme";
 
 // Stage and figure geometry (figures are drawn side-on, facing right).
@@ -150,8 +150,8 @@ export function ExchangeAnimation() {
     style={styles.stage}
     accessible
     accessibilityRole="image"
-    accessibilityLabel="A buyer and a seller meet on the street. The buyer shows a bank transfer marked Paid on their phone, the seller hands over the parcel, and both walk away happy.">
-    <Street width={width}/>
+    accessibilityLabel="A buyer and a seller meet. The buyer shows a bank transfer marked Paid on their phone, the seller hands over the parcel, and both walk away happy.">
+    <View style={styles.ground}/>
 
     <Shadow x={scene.seller.x}/>
     <Shadow x={scene.buyer.x}/>
@@ -171,35 +171,6 @@ export function ExchangeAnimation() {
       <Text style={styles.doneText}>✓</Text>
     </Animated.View>
   </View>;
-}
-
-/** A soft street: sky, distant buildings, a tree and the pavement. */
-function Street({ width }: { width: number }) {
-  const buildings = [
-    { x: 0.04, w: 54, h: 92 }, { x: 0.17, w: 40, h: 122 }, { x: 0.27, w: 62, h: 78 },
-    { x: 0.62, w: 48, h: 108 }, { x: 0.74, w: 66, h: 84 }, { x: 0.9, w: 44, h: 116 },
-  ];
-  // Filled to 100% so the street always reaches both edges, whatever the measured width.
-  return <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
-    <Rect x={0} y={0} width="100%" height="100%" fill="#FFFDF9"/>
-    <Circle cx={width - 46} cy={42} r={22} fill="#F7E3C8"/>
-    {buildings.map((building, index) => {
-      const x = building.x * width;
-      const top = GROUND - 6 - building.h;
-      return <G key={index}>
-        <Rect x={x} y={top} width={building.w} height={building.h} rx={4} fill={index % 2 ? "#F3E7D8" : "#EFE1CF"}/>
-        {Array.from({ length: Math.floor((building.h - 18) / 22) }, (_, row) => [0, 1].map((column) =>
-          <Rect key={`${row}-${column}`} x={x + 9 + column * (building.w / 2)} y={top + 12 + row * 22} width={building.w / 2 - 18} height={9} rx={2} fill="#FBF5EC"/>))}
-      </G>;
-    })}
-    <Rect x={width * 0.52} y={GROUND - 70} width={7} height={64} rx={3} fill="#B79A7C"/>
-    <Circle cx={width * 0.52 + 3.5} cy={GROUND - 84} r={24} fill="#CFE0CF"/>
-    <Circle cx={width * 0.52 - 12} cy={GROUND - 70} r={16} fill="#C3D9C4"/>
-    <Circle cx={width * 0.52 + 20} cy={GROUND - 72} r={15} fill="#C9DCC9"/>
-    <Rect x={0} y={GROUND - 6} width="100%" height={STAGE_HEIGHT - GROUND + 6} fill="#F1E6D8"/>
-    <Rect x={0} y={GROUND - 6} width="100%" height={3} fill="#E6D6C2"/>
-    {Array.from({ length: Math.ceil(width / 46) + 2 }, (_, index) => <Rect key={index} x={index * 46 + 20} y={GROUND + 6} width={22} height={2} rx={1} fill="#E6D6C2"/>)}
-  </Svg>;
 }
 
 function Shadow({ x }: { x: Animated.AnimatedInterpolation<number> }) {
@@ -294,7 +265,9 @@ function Parcel() {
 }
 
 const styles = StyleSheet.create({
-  stage: { width: "100%", height: STAGE_HEIGHT, borderRadius: radius.xl, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
+  // No backdrop: the people walk on the page itself, on a faint ground line.
+  stage: { width: "100%", height: STAGE_HEIGHT, overflow: "hidden" },
+  ground: { position: "absolute", left: 0, right: 0, top: GROUND - 1, height: 2, borderRadius: 1, backgroundColor: colors.border },
   figure: { position: "absolute", left: 0, top: FIGURE_TOP, width: FIGURE_WIDTH, height: FIGURE_HEIGHT },
   body: { position: "absolute", left: 0, top: 0 },
   phone: { position: "absolute", left: 13, top: ARM_LENGTH - 17 },
