@@ -1,35 +1,60 @@
 import React from "react";
 import { AccessibilityInfo, Animated, Easing, LayoutChangeEvent, Platform, StyleSheet, Text, View } from "react-native";
-import Svg, { Circle, Ellipse, Line, Path, Rect } from "react-native-svg";
-import { colors, radius, spacing, typography } from "../theme";
+import Svg, { Circle, Ellipse, G, Path, Rect } from "react-native-svg";
+import { colors, radius, typography } from "../theme";
 
-const STAGE_HEIGHT = 230;
-const FIGURE_WIDTH = 72;
-const FIGURE_HEIGHT = 150;
-const GROUND = STAGE_HEIGHT - 26;
-const FIGURE_TOP = GROUND - FIGURE_HEIGHT;
-const BOX_SIZE = 30;
-const BOX_TOP = FIGURE_TOP + 52;
-const CYCLE_MS = 7000;
-const STEP_MS = 380;
-// Shown when the system asks for reduced motion: parcel handed over, payment shown.
-const STILL_FRAME = 0.57;
+// Stage and figure geometry (figures are drawn side-on, facing right).
+const STAGE_HEIGHT = 250;
+const GROUND = STAGE_HEIGHT - 22;
+const FIGURE_WIDTH = 80;
+const FIGURE_HEIGHT = 166;
+const FIGURE_TOP = GROUND - 164;
+const SHOULDER = { x: 41, y: 46 };
+const HIP = { x: 41, y: 96 };
+const ARM_LENGTH = 58;
+const LEG_LENGTH = 72;
+const BOX_WIDTH = 32;
+const BOX_HEIGHT = 27;
+
+const CYCLE_MS = 8000;
+const STRIDE_MS = 760;
+// Shown when the system asks for reduced motion: the parcel just handed over, payment showing.
+const STILL_FRAME = 0.56;
 
 const nativeDriver = Platform.OS !== "web";
 
+type Look = {
+  skin: string; skinShade: string; hair: string;
+  shirt: string; shirtShade: string; pants: string; pantsShade: string;
+  shoe: string; sole: string; kind: "buyer" | "seller";
+};
+
+const BUYER: Look = { skin: "#E9B995", skinShade: "#D49E79", hair: "#3A2418", shirt: colors.terracotta, shirtShade: "#A9543A", pants: "#3B4C6E", pantsShade: "#2C3954", shoe: "#F4F1EC", sole: "#C9C2B8", kind: "buyer" };
+const SELLER: Look = { skin: "#B47A55", skinShade: "#9A6443", hair: "#1E1915", shirt: colors.green, shirtShade: "#22603F", pants: "#8E7D63", pantsShade: "#74654F", shoe: "#5E4130", sole: "#3E2B20", kind: "seller" };
+
+type Pose = {
+  x: Animated.AnimatedInterpolation<number>;
+  facing: Animated.AnimatedInterpolation<number>;
+  bob: Animated.AnimatedNode;
+  frontArm: Animated.AnimatedInterpolation<string>;
+  backArm: Animated.AnimatedInterpolation<string>;
+  frontLeg: Animated.AnimatedInterpolation<string>;
+  backLeg: Animated.AnimatedInterpolation<string>;
+};
+
 /**
  * Onboarding illustration: a buyer and a seller walk in from opposite sides,
- * the buyer shows a "Paid" bank transfer on their phone, the seller hands over
- * the parcel, and they walk back out. Loops; respects "reduce motion".
+ * the buyer raises their phone to show a bank transfer marked Paid, the seller
+ * holds out the parcel and the buyer takes it, then both turn and walk away.
+ * Loops; shows a still frame when "reduce motion" is on.
  */
 export function ExchangeAnimation() {
-  const [width, setWidth] = React.useState(320);
+  const [width, setWidth] = React.useState(340);
   const time = React.useRef(new Animated.Value(0)).current;
-  const step = React.useRef(new Animated.Value(0)).current;
+  const stride = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
-    let cycle: Animated.CompositeAnimation | undefined;
-    let walk: Animated.CompositeAnimation | undefined;
+    let loops: Animated.CompositeAnimation[] = [];
     let cancelled = false;
     AccessibilityInfo.isReduceMotionEnabled().catch(() => false).then((reduce) => {
       if (cancelled) return;
@@ -37,45 +62,83 @@ export function ExchangeAnimation() {
         time.setValue(STILL_FRAME);
         return;
       }
-      cycle = Animated.loop(Animated.timing(time, { toValue: 1, duration: CYCLE_MS, easing: Easing.linear, useNativeDriver: nativeDriver }));
-      walk = Animated.loop(Animated.timing(step, { toValue: 1, duration: STEP_MS, easing: Easing.linear, useNativeDriver: nativeDriver }));
-      cycle.start();
-      walk.start();
+      loops = [
+        Animated.loop(Animated.timing(time, { toValue: 1, duration: CYCLE_MS, easing: Easing.linear, useNativeDriver: nativeDriver })),
+        Animated.loop(Animated.timing(stride, { toValue: 1, duration: STRIDE_MS, easing: Easing.linear, useNativeDriver: nativeDriver })),
+      ];
+      loops.forEach((loop) => loop.start());
     });
-    return () => { cancelled = true; cycle?.stop(); walk?.stop(); };
-  }, [time, step]);
+    return () => { cancelled = true; loops.forEach((loop) => loop.stop()); };
+  }, [time, stride]);
 
-  const motion = React.useMemo(() => {
-    const meetLeft = width / 2 - FIGURE_WIDTH - 13;
-    const meetRight = width / 2 + 13;
-    const offLeft = -FIGURE_WIDTH - 8;
-    const offRight = width + 24;
+  const scene = React.useMemo(() => {
+    const centre = width / 2;
+    // Bodies stand about an arm's length apart, so their hands meet in the middle.
+    const meetLeft = centre - 48 - SHOULDER.x;
+    const meetRight = centre + 48 - SHOULDER.x;
+    const offLeft = -FIGURE_WIDTH - 30;
+    const offRight = width + 30;
     const at = (input: number[], output: number[]) => time.interpolate({ inputRange: input, outputRange: output, extrapolate: "clamp" });
+    const deg = (node: Animated.AnimatedNode) => (node as Animated.AnimatedInterpolation<number>).interpolate({ inputRange: [-360, 360], outputRange: ["-360deg", "360deg"] });
 
-    // 0–0.25 walk in · 0.27–0.60 phone shows "Paid" · 0.42–0.55 parcel handed over · 0.64 turn · 0.66–0.90 walk out · pause
-    const walking = at([0, 0.25, 0.26, 0.655, 0.665, 0.9, 0.91, 1], [1, 1, 0, 0, 1, 1, 0, 0]);
-    const bob = Animated.multiply(step.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -4, 0] }), walking);
-    const sway = Animated.multiply(step.interpolate({ inputRange: [0, 0.25, 0.75, 1], outputRange: [0, 3, -3, 0] }), walking);
-    return {
-      buyerX: at([0, 0.25, 0.66, 0.9, 1], [offLeft, meetLeft, meetLeft, offLeft, offLeft]),
-      sellerX: at([0, 0.25, 0.66, 0.9, 1], [offRight, meetRight, meetRight, offRight, offRight]),
-      // Facing each other, then turning back the way they came.
-      buyerFacing: at([0, 0.635, 0.645, 1], [1, 1, -1, -1]),
-      sellerFacing: at([0, 0.635, 0.645, 1], [-1, -1, 1, 1]),
-      bob,
-      sway: sway.interpolate({ inputRange: [-3, 3], outputRange: ["-3deg", "3deg"] }),
-      // The parcel: in the seller's hands, handed across, then carried off by the buyer.
-      boxX: at([0, 0.25, 0.42, 0.55, 0.62, 0.66, 0.9, 1], [offRight - 14, meetRight - 14, meetRight - 14, meetLeft + FIGURE_WIDTH - 16, meetLeft + FIGURE_WIDTH - 16, meetLeft + FIGURE_WIDTH / 2 - BOX_SIZE / 2, offLeft + FIGURE_WIDTH / 2 - BOX_SIZE / 2, offLeft + FIGURE_WIDTH / 2 - BOX_SIZE / 2]),
-      // Lifted across, then held lower so the buyer's phone stays visible.
-      boxLift: at([0.42, 0.485, 0.55, 1], [0, -10, 14, 14]),
-      paidX: meetLeft + FIGURE_WIDTH - 34,
-      paidOpacity: at([0.26, 0.3, 0.58, 0.62], [0, 1, 1, 0]),
-      paidScale: at([0.26, 0.3, 0.32], [0.4, 1.08, 1]),
-      doneX: width / 2 - 14,
-      doneOpacity: at([0.54, 0.57, 0.63, 0.66], [0, 1, 1, 0]),
-      doneScale: at([0.54, 0.58], [0.5, 1]),
+    // Timeline (0–1): walk in, slowing down · raise phone, "Paid" · parcel held out and taken · turn · walk away, speeding up · pause.
+    const walking = at([0, 0.2, 0.26, 0.655, 0.665, 0.72, 0.9, 0.91, 1], [1, 1, 0, 0, 0.6, 1, 1, 0, 0]);
+    const swing = Animated.multiply(stride.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, 1, 0, -1, 0] }), walking);
+    const bob = Animated.multiply(stride.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, -2.5, 0, -2.5, 0] }), walking);
+    const legFront = deg(Animated.multiply(swing, 24));
+    const legBack = deg(Animated.multiply(swing, -24));
+    const armSwingBack = deg(Animated.multiply(swing, 18));
+
+    // Ease in and out: big steps far away, small ones on arrival.
+    const approach = (off: number, meet: number) => at(
+      [0, 0.16, 0.22, 0.26, 0.66, 0.7, 0.76, 0.9, 1],
+      [off, meet + (off - meet) * 0.22, meet + (off - meet) * 0.04, meet, meet, meet + (off - meet) * 0.03, meet + (off - meet) * 0.2, off, off]);
+    const buyerX = approach(offLeft, meetLeft);
+    const sellerX = approach(offRight, meetRight);
+    const turn = (from: number) => at([0, 0.625, 0.645, 1], [from, from, -from, -from]);
+
+    // The buyer's phone arm: swings while walking in, raises the phone, reaches for the parcel, then carries it.
+    const buyerArmAction = at([0, 0.24, 0.3, 0.4, 0.44, 0.47, 0.53, 0.58, 1], [0, 0, -82, -82, -20, -70, -70, -45, -45]);
+    const buyerArmSwing = at([0, 0.25, 0.26, 1], [-18, -18, 0, 0]);
+    // The seller's front arm: carries the parcel, holds it out, lets go, then swings on the way out.
+    const sellerArmAction = at([0, 0.42, 0.47, 0.53, 0.58, 1], [-55, -55, -80, -80, 0, 0]);
+    const sellerArmSwing = at([0, 0.575, 0.585, 1], [0, 0, -18, -18]);
+
+    const buyer: Pose = {
+      x: buyerX, facing: turn(1), bob,
+      frontArm: deg(Animated.add(Animated.multiply(swing, buyerArmSwing), buyerArmAction)),
+      backArm: armSwingBack, frontLeg: legFront, backLeg: legBack,
     };
-  }, [width, time, step]);
+    const seller: Pose = {
+      x: sellerX, facing: turn(-1), bob,
+      frontArm: deg(Animated.add(Animated.multiply(swing, sellerArmSwing), sellerArmAction)),
+      backArm: armSwingBack, frontLeg: legFront, backLeg: legBack,
+    };
+
+    // The parcel follows the hands holding it (positions are the parcel's centre).
+    const sellerHand = (x: number) => x - 1;
+    const buyerCarry = (x: number) => x + 6;
+    const boxTimes = [0, 0.16, 0.22, 0.26, 0.42, 0.47, 0.53, 0.58, 0.625, 0.645, 0.66, 0.7, 0.76, 0.9, 1];
+    const sellerAt = (t: number) => t <= 0 ? offRight : t <= 0.16 ? meetRight + (offRight - meetRight) * 0.22 : t <= 0.22 ? meetRight + (offRight - meetRight) * 0.04 : meetRight;
+    const buyerAt = (fraction: number) => meetLeft + (offLeft - meetLeft) * fraction;
+    const boxX = at(boxTimes, [
+      sellerHand(sellerAt(0)), sellerHand(sellerAt(0.16)), sellerHand(sellerAt(0.22)), sellerHand(meetRight), sellerHand(meetRight),
+      meetRight - 9, meetLeft + 88, meetLeft + 76, meetLeft + 76,
+      buyerCarry(meetLeft), buyerCarry(meetLeft), buyerCarry(buyerAt(0.03)), buyerCarry(buyerAt(0.2)), buyerCarry(offLeft), buyerCarry(offLeft),
+    ].map((centreX) => centreX - BOX_WIDTH / 2));
+    const boxY = at([0, 0.42, 0.47, 0.53, 0.58, 1], [57, 57, 38, 46, 64, 64].map((top) => FIGURE_TOP + top));
+    const phoneVisible = at([0, 0.44, 0.47, 0.97, 1], [1, 1, 0, 0, 1]);
+
+    return {
+      buyer, seller, boxX, boxY, bob, phoneVisible,
+      paidX: meetLeft + 44,
+      paidOpacity: at([0.29, 0.32, 0.57, 0.61], [0, 1, 1, 0]),
+      paidScale: at([0.29, 0.32, 0.34], [0.5, 1.06, 1]),
+      doneX: centre - 15,
+      doneOpacity: at([0.53, 0.56, 0.62, 0.65], [0, 1, 1, 0]),
+      doneScale: at([0.53, 0.57], [0.4, 1]),
+    };
+  }, [width, time, stride]);
 
   const onLayout = (event: LayoutChangeEvent) => {
     const measured = Math.round(event.nativeEvent.layout.width);
@@ -87,81 +150,161 @@ export function ExchangeAnimation() {
     style={styles.stage}
     accessible
     accessibilityRole="image"
-    accessibilityLabel="A buyer and a seller meet. The buyer shows a bank transfer marked Paid on their phone, the seller hands over the item, and both walk away happy.">
-    <View style={styles.sun}/>
-    <View style={styles.ground}/>
+    accessibilityLabel="A buyer and a seller meet on the street. The buyer shows a bank transfer marked Paid on their phone, the seller hands over the parcel, and both walk away happy.">
+    <Street width={width}/>
 
-    <Animated.View style={[styles.figure, { transform: [{ translateX: motion.buyerX }, { translateY: motion.bob }, { rotate: motion.sway }, { scaleX: motion.buyerFacing }] }]}>
-      <Person shirt={colors.terracotta} skin="#E8B48C" hair="#3B2A20" holdingPhone/>
-    </Animated.View>
-    <Animated.View style={[styles.figure, { transform: [{ translateX: motion.sellerX }, { translateY: motion.bob }, { rotate: motion.sway }, { scaleX: motion.sellerFacing }] }]}>
-      <Person shirt={colors.green} skin="#B9805A" hair="#1F1A17"/>
-    </Animated.View>
+    <Shadow x={scene.seller.x}/>
+    <Shadow x={scene.buyer.x}/>
+    <Person look={SELLER} pose={scene.seller}/>
+    <Person look={BUYER} pose={scene.buyer} phoneVisible={scene.phoneVisible}/>
 
-    <Animated.View style={[styles.box, { transform: [{ translateX: motion.boxX }, { translateY: Animated.add(motion.boxLift, motion.bob) }] }]}>
+    <Animated.View style={[styles.box, { transform: [{ translateX: scene.boxX }, { translateY: Animated.add(scene.boxY, scene.bob) }] }]}>
       <Parcel/>
     </Animated.View>
 
-    <Animated.View style={[styles.paid, { opacity: motion.paidOpacity, transform: [{ translateX: motion.paidX }, { scale: motion.paidScale }] }]}>
-      <Text style={styles.paidCheck}>✓</Text>
-      <View><Text style={styles.paidTitle}>Paid</Text><Text style={styles.paidSub}>Bank transfer</Text></View>
+    <Animated.View style={[styles.paid, { opacity: scene.paidOpacity, transform: [{ translateX: scene.paidX }, { scale: scene.paidScale }] }]}>
+      <View style={styles.paidIcon}><Text style={styles.paidCheck}>✓</Text></View>
+      <View><Text style={styles.paidTitle}>Paid · LKR 28,500</Text><Text style={styles.paidSub}>Bank transfer</Text></View>
     </Animated.View>
 
-    <Animated.View style={[styles.done, { opacity: motion.doneOpacity, transform: [{ translateX: motion.doneX }, { scale: motion.doneScale }] }]}>
+    <Animated.View style={[styles.done, { opacity: scene.doneOpacity, transform: [{ translateX: scene.doneX }, { scale: scene.doneScale }] }]}>
       <Text style={styles.doneText}>✓</Text>
     </Animated.View>
   </View>;
 }
 
-/** A simple person facing right. The buyer holds a phone out in front. */
-function Person({ shirt, skin, hair, holdingPhone = false }: { shirt: string; skin: string; hair: string; holdingPhone?: boolean }) {
-  return <Svg width={FIGURE_WIDTH} height={FIGURE_HEIGHT} viewBox={`0 0 ${FIGURE_WIDTH} ${FIGURE_HEIGHT}`}>
-    {/* back arm */}
-    <Line x1={27} y1={50} x2={20} y2={82} stroke={shirt} strokeWidth={9} strokeLinecap="round"/>
-    <Circle cx={20} cy={84} r={4.5} fill={skin}/>
-    {/* legs and shoes */}
-    <Rect x={25} y={88} width={10} height={50} rx={5} fill={colors.charcoal}/>
-    <Rect x={38} y={88} width={10} height={50} rx={5} fill="#3D3D3D"/>
-    <Ellipse cx={32} cy={140} rx={9} ry={4.5} fill={colors.charcoal}/>
-    <Ellipse cx={46} cy={140} rx={9} ry={4.5} fill={colors.charcoal}/>
-    {/* body */}
-    <Rect x={20} y={40} width={34} height={54} rx={13} fill={shirt}/>
-    {/* head */}
-    <Rect x={31} y={32} width={10} height={10} rx={3} fill={skin}/>
-    <Circle cx={36} cy={22} r={16} fill={skin}/>
-    <Path d="M20 21 C20 8 30 4 37 4 C46 4 53 10 52 19 C47 15 41 13 33 14 C27 15 23 18 20 21 Z" fill={hair}/>
-    <Circle cx={44} cy={23} r={1.8} fill={colors.charcoal}/>
-    <Path d="M41 30 Q45 32.5 48 29.5" stroke={colors.charcoal} strokeWidth={1.6} fill="none" strokeLinecap="round"/>
-    {/* front arm, reaching forward */}
-    <Line x1={46} y1={50} x2={62} y2={63} stroke={shirt} strokeWidth={9} strokeLinecap="round"/>
-    <Circle cx={63} cy={64} r={4.5} fill={skin}/>
-    {holdingPhone && <>
-      <Rect x={58} y={48} width={12} height={20} rx={2.5} fill={colors.charcoal}/>
-      <Rect x={60} y={51} width={8} height={12} rx={1} fill="#BFE3CF"/>
-      <Path d="M61.5 57 L63.5 59 L66.5 54.5" stroke={colors.green} strokeWidth={1.4} fill="none" strokeLinecap="round"/>
+/** A soft street: sky, distant buildings, a tree and the pavement. */
+function Street({ width }: { width: number }) {
+  const buildings = [
+    { x: 0.04, w: 54, h: 92 }, { x: 0.17, w: 40, h: 122 }, { x: 0.27, w: 62, h: 78 },
+    { x: 0.62, w: 48, h: 108 }, { x: 0.74, w: 66, h: 84 }, { x: 0.9, w: 44, h: 116 },
+  ];
+  // Filled to 100% so the street always reaches both edges, whatever the measured width.
+  return <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+    <Rect x={0} y={0} width="100%" height="100%" fill="#FFFDF9"/>
+    <Circle cx={width - 46} cy={42} r={22} fill="#F7E3C8"/>
+    {buildings.map((building, index) => {
+      const x = building.x * width;
+      const top = GROUND - 6 - building.h;
+      return <G key={index}>
+        <Rect x={x} y={top} width={building.w} height={building.h} rx={4} fill={index % 2 ? "#F3E7D8" : "#EFE1CF"}/>
+        {Array.from({ length: Math.floor((building.h - 18) / 22) }, (_, row) => [0, 1].map((column) =>
+          <Rect key={`${row}-${column}`} x={x + 9 + column * (building.w / 2)} y={top + 12 + row * 22} width={building.w / 2 - 18} height={9} rx={2} fill="#FBF5EC"/>))}
+      </G>;
+    })}
+    <Rect x={width * 0.52} y={GROUND - 70} width={7} height={64} rx={3} fill="#B79A7C"/>
+    <Circle cx={width * 0.52 + 3.5} cy={GROUND - 84} r={24} fill="#CFE0CF"/>
+    <Circle cx={width * 0.52 - 12} cy={GROUND - 70} r={16} fill="#C3D9C4"/>
+    <Circle cx={width * 0.52 + 20} cy={GROUND - 72} r={15} fill="#C9DCC9"/>
+    <Rect x={0} y={GROUND - 6} width="100%" height={STAGE_HEIGHT - GROUND + 6} fill="#F1E6D8"/>
+    <Rect x={0} y={GROUND - 6} width="100%" height={3} fill="#E6D6C2"/>
+    {Array.from({ length: Math.ceil(width / 46) + 2 }, (_, index) => <Rect key={index} x={index * 46 + 20} y={GROUND + 6} width={22} height={2} rx={1} fill="#E6D6C2"/>)}
+  </Svg>;
+}
+
+function Shadow({ x }: { x: Animated.AnimatedInterpolation<number> }) {
+  return <Animated.View style={[styles.shadow, { transform: [{ translateX: x }] }]}/>;
+}
+
+/** One person, side-on, facing right; flipped to face left. Arms and legs swing from the shoulder and hip. */
+function Person({ look, pose, phoneVisible }: { look: Look; pose: Pose; phoneVisible?: Animated.AnimatedInterpolation<number> }) {
+  return <Animated.View style={[styles.figure, { transform: [{ translateX: pose.x }, { translateY: pose.bob }, { scaleX: pose.facing }] }]}>
+    <Limb pivot={SHOULDER} width={24} length={ARM_LENGTH} rotate={pose.backArm}><Arm look={look} shade/></Limb>
+    <Limb pivot={HIP} width={36} length={LEG_LENGTH} rotate={pose.backLeg}><Leg look={look} shade/></Limb>
+    <Svg style={styles.body} width={FIGURE_WIDTH} height={104} viewBox={`0 0 ${FIGURE_WIDTH} 104`}><Body look={look}/></Svg>
+    <Limb pivot={HIP} width={36} length={LEG_LENGTH} rotate={pose.frontLeg}><Leg look={look}/></Limb>
+    <Limb pivot={SHOULDER} width={24} length={ARM_LENGTH} rotate={pose.frontArm}>
+      <Arm look={look}/>
+      {phoneVisible && <Animated.View style={[styles.phone, { opacity: phoneVisible }]}><Phone/></Animated.View>}
+    </Limb>
+  </Animated.View>;
+}
+
+/** A limb hanging from a joint and rotating around it. */
+function Limb({ pivot, width, length, rotate, children }: { pivot: { x: number; y: number }; width: number; length: number; rotate: Animated.AnimatedInterpolation<string>; children: React.ReactNode }) {
+  return <Animated.View style={{ position: "absolute", left: pivot.x - width / 2, top: pivot.y - 4, width, height: length, transformOrigin: "50% 4px", transform: [{ rotate }] }}>{children}</Animated.View>;
+}
+
+function Arm({ look, shade = false }: { look: Look; shade?: boolean }) {
+  const shirt = shade ? look.shirtShade : look.shirt;
+  const skin = shade ? look.skinShade : look.skin;
+  return <Svg width={24} height={ARM_LENGTH} viewBox={`0 0 24 ${ARM_LENGTH}`}>
+    <Rect x={8} y={18} width={8} height={30} rx={4} fill={skin}/>
+    <Rect x={6.5} y={0} width={11} height={24} rx={5.5} fill={shirt}/>
+    <Ellipse cx={12} cy={51} rx={5} ry={5.5} fill={skin}/>
+  </Svg>;
+}
+
+function Leg({ look, shade = false }: { look: Look; shade?: boolean }) {
+  return <Svg width={36} height={LEG_LENGTH} viewBox={`0 0 36 ${LEG_LENGTH}`}>
+    <Rect x={12} y={0} width={12} height={62} rx={6} fill={shade ? look.pantsShade : look.pants}/>
+    <Path d="M11 60 Q11 56 16 56 L26 57 Q34 58 34 64 L34 66 L11 66 Z" fill={shade ? look.sole : look.shoe}/>
+    <Rect x={10} y={65} width={25} height={3.5} rx={1.5} fill={look.sole}/>
+  </Svg>;
+}
+
+/** Head, neck and torso (and the buyer's bag). */
+function Body({ look }: { look: Look }) {
+  const buyer = look.kind === "buyer";
+  return <>
+    {buyer && <Path d="M33 6 C24 6 22 16 24 26 C25 34 22 40 19 44 C26 45 31 40 31 32 Z" fill={look.hair}/>}
+    {/* neck and torso */}
+    <Rect x={37} y={30} width={9} height={12} rx={3} fill={look.skinShade}/>
+    <Rect x={27} y={38} width={28} height={60} rx={12} fill={look.shirt}/>
+    <Rect x={27} y={38} width={9} height={60} rx={6} fill={look.shirtShade} opacity={0.55}/>
+    <Path d="M36 38 Q41 45 47 38" stroke={look.shirtShade} strokeWidth={2} fill="none"/>
+    <Rect x={28} y={88} width={26} height={14} rx={6} fill={look.pants}/>
+    {buyer && <>
+      <Path d="M45 40 L31 86" stroke="#6E3B28" strokeWidth={2.2}/>
+      <Rect x={22} y={80} width={14} height={13} rx={3} fill="#8A4A32"/>
     </>}
+    {/* head, side-on */}
+    <Ellipse cx={42} cy={20} rx={13} ry={15} fill={look.skin}/>
+    <Path d="M53 17 Q57 21 54.5 24.5" fill={look.skin}/>
+    <Ellipse cx={37} cy={21} rx={3} ry={4} fill={look.skinShade}/>
+    <Circle cx={49} cy={18} r={1.6} fill={colors.charcoal}/>
+    <Path d="M46.5 14.5 L51.5 14" stroke={look.hair} strokeWidth={1.4} strokeLinecap="round"/>
+    <Path d="M49 29 Q51.5 30 53 28.5" stroke="#7A3F2E" strokeWidth={1.4} fill="none" strokeLinecap="round"/>
+    {buyer
+      ? <Path d="M29 19 C28 7 36 3 44 4 C51 5 55 9 55 14 C50 11 44 10 39 12 C36 14 34 18 33 23 C31 22 30 21 29 19 Z" fill={look.hair}/>
+      : <>
+          <Path d="M29 17 C29 7 36 4 43 4 C50 4 55 8 55 13 C49 10 42 10 37 13 C35 15 34 17 33 19 C31 19 30 18 29 17 Z" fill={look.hair}/>
+          <Path d="M34 24 Q36 33 44 34 Q51 34 54 27 Q50 31 44 30 Q38 29 36 24 Z" fill={look.hair} opacity={0.35}/>
+        </>}
+  </>;
+}
+
+function Phone() {
+  return <Svg width={12} height={19} viewBox="0 0 12 19">
+    <Rect x={0} y={0} width={12} height={19} rx={2.5} fill={colors.charcoal}/>
+    <Rect x={1.5} y={2} width={9} height={14} rx={1} fill="#BFE3CF"/>
+    <Path d="M3.5 9.5 L5.3 11.3 L8.5 6.8" stroke={colors.green} strokeWidth={1.5} fill="none" strokeLinecap="round"/>
   </Svg>;
 }
 
 function Parcel() {
-  return <Svg width={BOX_SIZE} height={BOX_SIZE} viewBox="0 0 30 30">
-    <Rect x={1} y={5} width={28} height={23} rx={3} fill="#D9A066"/>
-    <Rect x={1} y={5} width={28} height={7} rx={3} fill="#C98F55"/>
-    <Rect x={12.5} y={5} width={5} height={23} fill={colors.terracotta}/>
-    <Path d="M6 22 C8 18 11 18 12 20" stroke={colors.green} strokeWidth={1.6} fill="none" strokeLinecap="round"/>
+  return <Svg width={BOX_WIDTH} height={BOX_HEIGHT} viewBox={`0 0 ${BOX_WIDTH} ${BOX_HEIGHT}`}>
+    <Rect x={0.5} y={2} width={31} height={24.5} rx={2.5} fill="#D6A06A"/>
+    <Path d="M0.5 9 L31.5 9" stroke="#C38A54" strokeWidth={1}/>
+    <Rect x={0.5} y={2} width={31} height={7} rx={2.5} fill="#C9935D"/>
+    <Rect x={13.5} y={2} width={5} height={24.5} fill="#E9D3B2" opacity={0.85}/>
+    <Rect x={20} y={14} width={9} height={7} rx={1} fill="#FFF8EE"/>
+    <Path d="M4 21 C6 17 9 17 10 19" stroke={colors.green} strokeWidth={1.5} fill="none" strokeLinecap="round"/>
   </Svg>;
 }
 
 const styles = StyleSheet.create({
   stage: { width: "100%", height: STAGE_HEIGHT, borderRadius: radius.xl, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
-  sun: { position: "absolute", top: 22, right: 28, width: 46, height: 46, borderRadius: 23, backgroundColor: colors.creamSecondary },
-  ground: { position: "absolute", left: spacing.md, right: spacing.md, top: GROUND + 1, height: 3, borderRadius: 2, backgroundColor: colors.creamSecondary },
   figure: { position: "absolute", left: 0, top: FIGURE_TOP, width: FIGURE_WIDTH, height: FIGURE_HEIGHT },
-  box: { position: "absolute", left: 0, top: BOX_TOP, width: BOX_SIZE, height: BOX_SIZE },
-  paid: { position: "absolute", left: 0, top: FIGURE_TOP - 42, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.green },
-  paidCheck: { ...typography.medium, color: colors.green, fontWeight: "800" },
+  body: { position: "absolute", left: 0, top: 0 },
+  phone: { position: "absolute", left: 13, top: ARM_LENGTH - 17 },
+  shadow: { position: "absolute", left: SHOULDER.x - 22, top: GROUND - 3, width: 44, height: 8, borderRadius: 4, backgroundColor: "rgba(41,41,41,0.10)" },
+  box: { position: "absolute", left: 0, top: 0, width: BOX_WIDTH, height: BOX_HEIGHT },
+  paid: { position: "absolute", left: 0, top: FIGURE_TOP - 46, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.green, shadowColor: colors.charcoal, shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  paidIcon: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.green, alignItems: "center", justifyContent: "center" },
+  paidCheck: { color: colors.white, fontWeight: "800", fontSize: 12, lineHeight: 14 },
   paidTitle: { ...typography.caption, color: colors.green, fontWeight: "800", lineHeight: 15 },
   paidSub: { ...typography.label, color: colors.textSecondary, fontSize: 10, lineHeight: 12 },
-  done: { position: "absolute", left: 0, top: FIGURE_TOP + 4, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.green, alignItems: "center", justifyContent: "center" },
-  doneText: { color: colors.white, fontWeight: "800", fontSize: 15, lineHeight: 18 },
+  done: { position: "absolute", left: 0, top: FIGURE_TOP + 4, width: 30, height: 30, borderRadius: 15, backgroundColor: colors.green, alignItems: "center", justifyContent: "center" },
+  doneText: { color: colors.white, fontWeight: "800", fontSize: 16, lineHeight: 19 },
 });
