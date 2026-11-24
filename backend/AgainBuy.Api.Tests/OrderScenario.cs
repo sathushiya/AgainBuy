@@ -25,9 +25,9 @@ public sealed class OrderScenario : IAsyncDisposable
         };
     }
 
-    public async Task<OrderDetailDto> Reserve()
+    public async Task<OrderDetailDto> Reserve(string productId = ProductId)
     {
-        var response = await Buyer.PostAsJsonAsync("/api/orders", new { productId = ProductId });
+        var response = await Buyer.PostAsJsonAsync("/api/orders", new { productId });
         response.EnsureSuccessStatusCode();
         return await response.Read<OrderDetailDto>();
     }
@@ -42,10 +42,10 @@ public sealed class OrderScenario : IAsyncDisposable
         Seller.PutAsJsonAsync("/api/account/settings", new { notifyMessages = true, notifyOrders = true, notifyNews = false, savedLocations = Array.Empty<string>(), bankDetails = BankDetails });
 
     /// <summary>Reserves the listing and has both parties agree, leaving the order waiting for payment.</summary>
-    public async Task<string> AgreeDeal()
+    public async Task<string> AgreeDeal(string productId = ProductId)
     {
         await SaveSellerBankDetails();
-        var id = (await Reserve()).Summary.Id;
+        var id = (await Reserve(productId)).Summary.Id;
         (await Act(Buyer, id, "agree")).EnsureSuccessStatusCode();
         (await Act(Seller, id, "agree")).EnsureSuccessStatusCode();
         return id;
@@ -62,12 +62,25 @@ public sealed class OrderScenario : IAsyncDisposable
     }
 
     /// <summary>Paid and confirmed by the seller, ready to ship or hand over.</summary>
-    public async Task<string> PaidOrder()
+    public async Task<string> PaidOrder(string productId = ProductId)
     {
-        var id = await AgreeDeal();
+        var id = await AgreeDeal(productId);
         (await UploadReceipt(Buyer, id)).EnsureSuccessStatusCode();
         (await Act(Seller, id, "confirm-payment")).EnsureSuccessStatusCode();
         return id;
+    }
+
+    /// <summary>A new listing by the seller that offers delivery with the given courier; returns its id.</summary>
+    public async Task<string> CreateDeliveryListing(string courier = "Domex")
+    {
+        var response = await Seller.PostAsJsonAsync("/api/products", new
+        {
+            title = "Philips Air Fryer · 4.1L", category = "Appliances", price = 18000, condition = "Excellent", usage = "1 year", purchaseYear = 2024,
+            description = "Works perfectly, cleaned and packed in its original box.", defects = "None", location = "Colombo 05",
+            delivery = "Delivery", courier,
+        });
+        response.EnsureSuccessStatusCode();
+        return (await response.Read<ProductDto>()).Id;
     }
 
     public ValueTask DisposeAsync() => Factory.DisposeAsync();

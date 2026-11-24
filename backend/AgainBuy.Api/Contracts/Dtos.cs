@@ -158,3 +158,11 @@ public record RejectPaymentRequest([Required, MinLength(3, ErrorMessage = "Say w
 
 /// <summary>A path (relative to the API) valid for a few minutes; no Authorization header needed.</summary>
 public record FileLinkDto(string Url, DateTime ExpiresAt);
+
+public record ShipRequest(
+    // Optional when the listing already names a courier; the seller may switch.
+    CourierService? Courier,
+    [Required, MinLength(3, ErrorMessage = "Enter the courier's tracking number."), MaxLength(80)] string TrackingNumber,
+    [MaxLength(500)] string? DeliveryNotes);
+
+public record ReadyForPickupRequest([MaxLength(500)] string? PickupNotes);

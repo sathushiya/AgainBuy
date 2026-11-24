@@ -264,6 +264,90 @@ public class OrdersController(AppDbContext db, Notifier notifier, TimeProvider t
         return await Detail(id, User.UserId(), cancellationToken);
     }
 
+    // ---- Stage 5–6: ship or hand over, then the buyer confirms receipt ---------
+
+    /// <summary>The seller has booked the courier (on its own website) and records the shipment.</summary>
+    [HttpPost("{id}/ship")]
+    public async Task<ActionResult<OrderDetailDto>> Ship(string id, ShipRequest request, [FromServices] DeliveryReceiptPdf receipts, CancellationToken cancellationToken)
+    {
+        var order = await FindForParticipant(id, cancellationToken);
+        if (order is null) return NotFound();
+        if (Disallowed(order, OrderActions.Ship) is { } refused) return refused;
+
+        var courier = request.Courier ?? order.Courier;
+        if (courier is null)
+            return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]> { ["courier"] = ["Choose PickMe or Domex."] }));
+
+        order.Courier = courier;
+        order.TrackingNumber = request.TrackingNumber.Trim();
+        order.DeliveryNotes = request.DeliveryNotes?.Trim() ?? "";
+        order.DispatchedAt = time.GetUtcNow().UtcDateTime;
+        Move(order, OrderStatus.Shipped, order.SellerId, $"Shipped with {courier}, tracking number {order.TrackingNumber}");
+        await WriteDeliveryReceipt(order, receipts, cancellationToken);
+
+        var title = order.Product!.Title;
+        notifier.Send(order.BuyerId, NotificationType.Shipped, "Your order has been shipped", $"{title} is on its way with {courier}. Tracking number: {order.TrackingNumber}. Track it on the {courier} website.", order.Id);
+        notifier.Send(order.BuyerId, NotificationType.ReceiptGenerated, "Delivery receipt ready", $"Your delivery receipt {order.DeliveryReceiptNumber} for {title} is ready to download from the order.", order.Id);
+
+        if (await Save(cancellationToken) is { } conflict) return conflict;
+        return await Detail(id, User.UserId(), cancellationToken);
+    }
+
+    /// <summary>For pickup orders: the item is ready for the buyer to collect.</summary>
+    [HttpPost("{id}/ready-for-pickup")]
+    public async Task<ActionResult<OrderDetailDto>> ReadyForPickup(string id, ReadyForPickupRequest request, [FromServices] DeliveryReceiptPdf receipts, CancellationToken cancellationToken)
+    {
+        var order = await FindForParticipant(id, cancellationToken);
+        if (order is null) return NotFound();
+        if (Disallowed(order, OrderActions.ReadyForPickup) is { } refused) return refused;
+
+        order.DeliveryNotes = request.PickupNotes?.Trim() ?? "";
+        order.DispatchedAt = time.GetUtcNow().UtcDateTime;
+        Move(order, OrderStatus.ReadyForPickup, order.SellerId, "Ready for pickup");
+        await WriteDeliveryReceipt(order, receipts, cancellationToken);
+
+        var title = order.Product!.Title;
+        notifier.Send(order.BuyerId, NotificationType.ReadyForPickup, "Ready for pickup", $"{title} is ready to collect from {order.Seller!.Name} in {order.Product.Location}. Arrange the time in chat.", order.Id);
+        notifier.Send(order.BuyerId, NotificationType.ReceiptGenerated, "Pickup receipt ready", $"Your receipt {order.DeliveryReceiptNumber} for {title} is ready to download from the order.", order.Id);
+
+        if (await Save(cancellationToken) is { } conflict) return conflict;
+        return await Detail(id, User.UserId(), cancellationToken);
+    }
+
+    /// <summary>
+    /// Only the buyer can say they've received the item. That completes the
+    /// order: the listing is sold and both parties' histories are updated.
+    /// </summary>
+    [HttpPost("{id}/confirm-delivery")]
+    public async Task<ActionResult<OrderDetailDto>> ConfirmDelivery(string id, [FromServices] DeliveryReceiptPdf receipts, CancellationToken cancellationToken)
+    {
+        var order = await FindForParticipant(id, cancellationToken);
+        if (order is null) return NotFound();
+        if (Disallowed(order, OrderActions.ConfirmDelivery) is { } refused) return refused;
+
+        var now = time.GetUtcNow().UtcDateTime;
+        order.DeliveredAt = now;
+        Move(order, OrderStatus.Delivered, order.BuyerId, "Received by the buyer");
+        order.CompletedAt = now;
+        Move(order, OrderStatus.Completed, null, "Transaction completed");
+        order.Product!.Status = ListingStatus.Sold;
+
+        // Purchase and sales history (shown under My Purchases / My Sales).
+        db.Transactions.Add(new Transaction { Id = Ids.New("TX-"), OrderId = order.Id, UserId = order.BuyerId, ProductId = order.ProductId, Type = TransactionType.Purchase, Party = order.Seller!.Name, Amount = order.AgreedPrice, Date = now, Status = TransactionStatus.Completed });
+        db.Transactions.Add(new Transaction { Id = Ids.New("TX-"), OrderId = order.Id, UserId = order.SellerId, ProductId = order.ProductId, Type = TransactionType.Sale, Party = order.Buyer!.Name, Amount = order.AgreedPrice, Date = now, Status = TransactionStatus.Completed });
+
+        // Refresh the receipt so it shows the delivery.
+        await WriteDeliveryReceipt(order, receipts, cancellationToken);
+
+        var title = order.Product.Title;
+        notifier.Send(order.SellerId, NotificationType.Delivered, "Product delivered", $"{order.Buyer.Name} confirmed they received {title}.", order.Id);
+        notifier.Send(order.SellerId, NotificationType.Completed, "Sale completed", $"Your sale of {title} for {Lkr(order.AgreedPrice)} is complete.", order.Id);
+        notifier.Send(order.BuyerId, NotificationType.Completed, "Purchase completed", $"Thanks for confirming. Your purchase of {title} is complete.", order.Id);
+
+        if (await Save(cancellationToken) is { } conflict) return conflict;
+        return await Detail(id, User.UserId(), cancellationToken);
+    }
+
     /// <summary>A short-lived link to the order's payment receipt or delivery receipt, for its buyer or seller only.</summary>
     [HttpGet("{id}/files/{kind}/link")]
     public async Task<ActionResult<FileLinkDto>> FileLink(string id, string kind, [FromServices] OrderFileLinks links, CancellationToken cancellationToken)
@@ -279,6 +363,25 @@ public class OrdersController(AppDbContext db, Notifier notifier, TimeProvider t
     }
 
     // ---- Helpers ------------------------------------------------------------
+
+    /// <summary>Renders the delivery/pickup receipt from the order as it stands and stores it privately.</summary>
+    private async Task WriteDeliveryReceipt(Order order, DeliveryReceiptPdf receipts, CancellationToken cancellationToken)
+    {
+        var now = time.GetUtcNow().UtcDateTime;
+        order.DeliveryReceiptNumber ??= $"RCPT-{now:yyyyMMdd}-{System.Security.Cryptography.RandomNumberGenerator.GetHexString(6)}";
+        var pdf = await receipts.RenderAsync(order, order.DeliveryReceiptNumber, now, cancellationToken);
+
+        var file = await db.OrderFiles.SingleOrDefaultAsync(candidate => candidate.OrderId == order.Id && candidate.Kind == OrderFileKind.DeliveryReceipt, cancellationToken);
+        if (file is null)
+        {
+            db.OrderFiles.Add(new OrderFile { OrderId = order.Id, Kind = OrderFileKind.DeliveryReceipt, ContentType = FileSignatures.Pdf, FileName = $"AgainBuy-receipt-{order.DeliveryReceiptNumber}.pdf", Data = pdf, CreatedAt = now });
+        }
+        else
+        {
+            file.Data = pdf;
+            file.CreatedAt = now;
+        }
+    }
 
     private ActionResult InvalidFile(string message) =>
         ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]> { ["file"] = [message] }));
