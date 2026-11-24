@@ -4,6 +4,13 @@
 export type ProductCondition = "Like new" | "Excellent" | "Good" | "Fair";
 /** How the seller hands the item over; matches the chips on the Sell screen. */
 export type DeliveryOption = "Delivery" | "Meet-up" | "Both";
+
+/** One category-specific detail, e.g. { key: "storage", label: "Storage capacity", value: "256 GB" }. */
+export interface ProductSpecification {
+  key: string;
+  label: string;
+  value: string;
+}
 export type ListingStatus = "Active" | "Reserved" | "Sold" | "Inactive";
 export type UserRole = "customer" | "admin";
 export type AccountStatus = "Active" | "Review" | "Inactive";
@@ -48,6 +55,8 @@ export interface Product {
   /** Empty when the seller didn't give one. */
   reasonForSelling: string;
   delivery: DeliveryOption;
+  /** In the order the Sell screen showed them; empty for older listings. */
+  specifications: ProductSpecification[];
   listedAt: string;
   status: ListingStatus;
   isOwn: boolean;
@@ -68,6 +77,7 @@ export interface ListingInput {
   accessories?: string;
   reasonForSelling?: string;
   delivery?: DeliveryOption;
+  specifications?: ProductSpecification[];
   location: string;
   images?: string[];
 }
