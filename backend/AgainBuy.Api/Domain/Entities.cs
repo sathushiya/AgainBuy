@@ -90,6 +90,9 @@ public class Message
     public string? SenderId { get; set; }
     public required string SenderName { get; set; }
     public required string Body { get; set; }
+
+    // Optional photo (uploaded through /api/uploads/images); Body may then be empty.
+    public string? ImageUrl { get; set; }
     public DateTime SentAt { get; set; } = DateTime.UtcNow;
     public DateTime? ReadAt { get; set; }
 }
