@@ -1,14 +1,15 @@
 import React from "react";
 import { Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { AppIcon } from "../../components/AppIcon";
-import { AppTextInput, ConfirmDialog, EmptyState, ErrorMessage, LoadingIndicator, PrimaryButton, ScreenContainer, SecondaryButton, StatusBadge } from "../../components/core";
+import { AppTextInput, ConfirmDialog, EmptyState, ErrorMessage, FilterChip, LoadingIndicator, PrimaryButton, ScreenContainer, SecondaryButton, StatusBadge } from "../../components/core";
 import { ProductImage } from "../../components/marketplace";
 import { OrderTimeline } from "../../components/orders";
+import { COURIERS, courierWebsite } from "../../config/couriers";
 import { useApiData } from "../../hooks/useApiData";
 import { api, errorMessage } from "../../services/api";
 import { photoFile, pickPhotos } from "../../services/photos";
 import { colors, radius, spacing, typography } from "../../theme";
-import { OrderAction, OrderDetail, OrderParty } from "../../types";
+import { CourierService, OrderAction, OrderDetail, OrderParty } from "../../types";
 import { formatDate, messageTime } from "../../utils/format";
 import { nextStep } from "../../utils/orders";
 
@@ -66,6 +67,7 @@ export function OrderDetailScreen({ navigation, route }: { navigation: any; rout
 
     {summary.status === "Negotiating" && <NegotiationSection order={order} busy={busy} onPropose={(price) => run("price", () => api.proposePrice(order.summary.id, price))} onAgree={() => run("agree", () => api.agreeDeal(order.summary.id))}/>}
     {PAYMENT_STAGES.includes(summary.status) && <PaymentSection order={order} busy={busy} run={run}/>}
+    {DELIVERY_STAGES.includes(summary.status) && <DeliverySection order={order} busy={busy} run={run}/>}
 
     {actionError && <ErrorMessage message={actionError}/>}
     {can("cancel") && <SecondaryButton title="Remove reservation" destructive onPress={() => setConfirmCancel(true)} style={styles.cancel}/>}
@@ -160,6 +162,68 @@ function PaymentSection({ order, busy, run }: { order: OrderDetail; busy: string
   </Section>;
 }
 
+const DELIVERY_STAGES = ["Payment confirmed", "Shipped", "Ready for pickup", "Delivered", "Completed"];
+
+/**
+ * Handover. Delivery: the seller books the courier on its website and records
+ * the tracking number. Pickup: the seller marks it ready. Only the buyer can
+ * confirm they received it.
+ */
+function DeliverySection({ order, busy, run }: { order: OrderDetail; busy: string | null; run: (key: string, action: () => Promise<OrderDetail>) => Promise<void> }) {
+  const { summary } = order;
+  const id = summary.id;
+  const delivery = summary.deliveryMethod === "Delivery";
+  const [courier, setCourier] = React.useState<CourierService | null>(summary.courier);
+  const [tracking, setTracking] = React.useState("");
+  const [notes, setNotes] = React.useState("");
+  const [confirmReceived, setConfirmReceived] = React.useState(false);
+  const [linkError, setLinkError] = React.useState<string | null>(null);
+  const website = courierWebsite(summary.courier ?? courier);
+
+  // A courier website, or a signed link fetched on demand (it expires after a few minutes).
+  const open = async (target: string | (() => Promise<string>)) => {
+    setLinkError(null);
+    try {
+      await Linking.openURL(typeof target === "string" ? target : await target());
+    } catch (caught) {
+      setLinkError(errorMessage(caught));
+    }
+  };
+
+  return <Section title={delivery ? "Delivery" : "Pickup"}>
+    <Text style={styles.body}>{delivery ? `Delivery${summary.courier ? ` with ${summary.courier}` : ""}. ${order.dispatchedAt ? "" : "The seller books the courier on its website once payment is confirmed."}` : "Pickup only: agree the time and place in chat."}</Text>
+
+    {order.dispatchedAt && <View style={styles.bank}>
+      {delivery && <><Text style={styles.bankLabel}>Tracking number</Text><Text selectable style={styles.bankText}>{order.trackingNumber}</Text></>}
+      <Text style={styles.bankLabel}>{delivery ? "Shipped" : "Ready for pickup"}</Text><Text style={styles.bankText}>{formatDate(order.dispatchedAt)} at {messageTime(order.dispatchedAt)}</Text>
+      {order.deliveryNotes ? <><Text style={styles.bankLabel}>{delivery ? "Delivery notes" : "Pickup notes"}</Text><Text style={styles.bankText}>{order.deliveryNotes}</Text></> : null}
+      {order.deliveredAt && <><Text style={styles.bankLabel}>Received by the buyer</Text><Text style={styles.bankText}>{formatDate(order.deliveredAt)} at {messageTime(order.deliveredAt)}</Text></>}
+    </View>}
+    {delivery && order.dispatchedAt && website && <Pressable accessibilityRole="link" onPress={() => open(website)}><Text style={styles.link}>Track it on the {summary.courier} website ↗</Text></Pressable>}
+
+    {order.actions.includes("ship") && <>
+      <Text style={styles.bankLabel}>Courier service</Text>
+      <View style={styles.chips}>{COURIERS.map((item) => <FilterChip key={item.id} label={item.name} selected={courier === item.id} onPress={() => setCourier(item.id)}/>)}</View>
+      {website && <Pressable accessibilityRole="link" onPress={() => open(website)}><Text style={styles.link}>Book the delivery on the {courier} website ↗</Text></Pressable>}
+      <AppTextInput label="Tracking number" value={tracking} onChangeText={setTracking} placeholder="From the courier's booking confirmation"/>
+      <AppTextInput label="Delivery notes (optional)" value={notes} onChangeText={setNotes} multiline placeholder="e.g. Expected in 2 working days"/>
+      <PrimaryButton title="Mark as shipped" disabled={!courier || tracking.trim().length < 3} loading={busy === "ship"} onPress={() => run("ship", () => api.shipOrder(id, { courier: courier ?? undefined, trackingNumber: tracking.trim(), deliveryNotes: notes.trim() || undefined }))}/>
+    </>}
+
+    {order.actions.includes("readyForPickup") && <>
+      <AppTextInput label="Pickup notes (optional)" value={notes} onChangeText={setNotes} multiline placeholder="e.g. Weekdays after 5pm, near the main gate"/>
+      <PrimaryButton title="Mark ready for pickup" loading={busy === "readyForPickup"} onPress={() => run("readyForPickup", () => api.readyForPickup(id, notes.trim() || undefined))}/>
+    </>}
+
+    {order.actions.includes("confirmDelivery") && <PrimaryButton title="Confirm delivery" loading={busy === "confirmDelivery"} onPress={() => setConfirmReceived(true)}/>}
+
+    {summary.hasDeliveryReceipt && <SecondaryButton title={`Download ${delivery ? "delivery" : "pickup"} receipt${order.deliveryReceiptNumber ? ` (${order.deliveryReceiptNumber})` : ""}`} icon={<AppIcon name="receipt-outline" size={18} color={colors.charcoal}/>} onPress={() => open(() => api.orderFileUrl(id, "delivery-receipt"))}/>}
+    {linkError && <ErrorMessage message={linkError}/>}
+
+    <ConfirmDialog visible={confirmReceived} title="Have you received the item?" message="Only confirm once it's in your hands and as described. This completes the purchase, and the seller is told it was delivered." confirmLabel="Yes, I received it" onCancel={() => setConfirmReceived(false)} onConfirm={() => { setConfirmReceived(false); void run("confirmDelivery", () => api.confirmDelivery(id)); }}/>
+  </Section>;
+}
+
 function AgreementLine({ label, agreedAt }: { label: string; agreedAt: string | null }) {
   return <View style={styles.agreement}><AppIcon name={agreedAt ? "checkmark-circle" : "chevron-forward"} size={18} color={agreedAt ? colors.green : colors.textSecondary}/><Text style={styles.agreementText}>{label}: {agreedAt ? `agreed on ${formatDate(agreedAt)} at ${messageTime(agreedAt)}` : "not agreed yet"}</Text></View>;
 }
@@ -210,4 +274,6 @@ const styles = StyleSheet.create({
   confirmedText: { ...typography.caption, color: colors.green, fontWeight: "700", flex: 1 },
   rejectBox: { gap: spacing.sm },
   rejectActions: { flexDirection: "row", gap: spacing.sm },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  link: { ...typography.caption, color: colors.terracotta, fontWeight: "700" },
 });
