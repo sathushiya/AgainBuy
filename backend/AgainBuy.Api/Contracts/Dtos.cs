@@ -82,6 +82,8 @@ public record MessageDto(int Id, string SenderName, string Body, string? ImageUr
 
 public record UnreadCountDto(int Count);
 
+public record NotificationDto(int Id, NotificationType Type, string Title, string Body, string? OrderId, DateTime CreatedAt, bool Read);
+
 public record ConversationDetailDto(ConversationDto Conversation, IReadOnlyList<MessageDto> Messages);
 
 // A message needs text, a photo, or both (checked in ConversationsController).

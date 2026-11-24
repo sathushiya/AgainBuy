@@ -5,6 +5,7 @@ using AgainBuy.Api.Data;
 using AgainBuy.Api.Domain;
 using AgainBuy.Api.Images;
 using AgainBuy.Api.Infrastructure;
+using AgainBuy.Api.Orders;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddScoped<Notifier>();
 
 // Listing photos go to Cloudinary. Without credentials the API still runs;
 // only the upload endpoint answers 503.
