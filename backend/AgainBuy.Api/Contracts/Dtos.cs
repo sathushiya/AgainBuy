@@ -37,7 +37,7 @@ public record UpdateProfileRequest(
 public record ProductDto(
     string Id, string Title, string Category, decimal Price, decimal? OriginalPrice, string Image, IReadOnlyList<string> Images,
     ProductCondition Condition, string Usage, int PurchaseYear, string Location, string Seller, string SellerAvatar, double SellerRating,
-    string Brand, string Model, string Description, string Defects, string Accessories, DateTime ListedAt, ListingStatus Status, bool IsOwn);
+    string Brand, string Model, string Description, string Defects, string Accessories, string ReasonForSelling, DeliveryOption Delivery, DateTime ListedAt, ListingStatus Status, bool IsOwn);
 
 // Mirrors the Sell screen's zod schema in frontend/src/screens/sell/SellScreen.tsx.
 public record UpsertListingRequest(
@@ -53,6 +53,9 @@ public record UpsertListingRequest(
     [Required, MinLength(20, ErrorMessage = "Add at least 20 characters."), MaxLength(4000)] string Description,
     [Required, MinLength(2, ErrorMessage = "Describe defects or write \"None\"."), MaxLength(1000)] string Defects,
     [MaxLength(500)] string? Accessories,
+    [MaxLength(300, ErrorMessage = "Keep the reason under 300 characters.")] string? ReasonForSelling,
+    // Optional for older clients; a missing value means meet-up only.
+    DeliveryOption? Delivery,
     [Required, MinLength(2, ErrorMessage = "Add a pickup location."), MaxLength(120)] string Location,
     [MaxLength(8)] IReadOnlyList<string>? Images);
 

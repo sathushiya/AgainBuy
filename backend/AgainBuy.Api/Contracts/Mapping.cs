@@ -18,7 +18,7 @@ public static class Mapping
         product.Id, product.Title, product.Category, product.Price, product.OriginalPrice, product.Image,
         product.Images.Count > 0 ? product.Images : [product.Image],
         product.Condition, product.Usage, product.PurchaseYear, product.Location, product.SellerName, product.SellerAvatar,
-        product.SellerRating, product.Brand, product.Model, product.Description, product.Defects, product.Accessories,
+        product.SellerRating, product.Brand, product.Model, product.Description, product.Defects, product.Accessories, product.ReasonForSelling, product.Delivery,
         product.ListedAt, product.Status, viewerId is not null && product.SellerId == viewerId);
 
     public static TransactionDto ToDto(this Transaction transaction) => new(

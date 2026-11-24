@@ -231,6 +231,8 @@ public class ProductsController(AppDbContext db, IOptions<CloudinaryOptions> clo
         product.Description = request.Description.Trim();
         product.Defects = request.Defects.Trim();
         product.Accessories = request.Accessories?.Trim() ?? "";
+        product.ReasonForSelling = request.ReasonForSelling?.Trim() ?? "";
+        product.Delivery = request.Delivery ?? DeliveryOption.MeetUp;
         product.Location = request.Location.Trim();
         product.Images = request.Images?.ToList() ?? product.Images;
         product.Image = product.Images.FirstOrDefault() ?? product.Image;
