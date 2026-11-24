@@ -2,15 +2,22 @@ using System.ComponentModel.DataAnnotations;
 
 namespace AgainBuy.Api.Contracts;
 
-public record AssistantTurn(
-    [Required, RegularExpression("^(user|assistant)$", ErrorMessage = "Role must be user or assistant.")] string Role,
-    [Required, MaxLength(1000, ErrorMessage = "Keep each message under 1,000 characters.")] string Content);
-
-public record AssistantChatRequest(
-    // The conversation so far, oldest first, ending with the user's new question.
-    [Required, MinLength(1), MaxLength(40)] List<AssistantTurn> Messages,
-    // Set when the chat was opened from a product page.
+/// <summary>Starts a conversation. ProductId when asked from a product page.</summary>
+public record StartAssistantConversationRequest(
+    [Required(ErrorMessage = "Ask a question first."), MaxLength(1000, ErrorMessage = "Keep your question under 1,000 characters.")] string Message,
     string? ProductId);
 
-// Products: listings the assistant found for this answer, shown as cards in the app.
-public record AssistantReplyDto(string Reply, IReadOnlyList<ProductDto> Products);
+/// <summary>Asks the next question in an existing conversation.</summary>
+public record AssistantQuestionRequest(
+    [Required(ErrorMessage = "Ask a question first."), MaxLength(1000, ErrorMessage = "Keep your question under 1,000 characters.")] string Message);
+
+/// <summary>A question ("user") or an answer ("assistant"). Answers carry listing cards and four follow-up questions.</summary>
+public record AssistantMessageDto(long Id, string Role, string Content, IReadOnlyList<ProductDto> Products, IReadOnlyList<string> Suggestions, DateTime CreatedAt);
+
+/// <summary>A conversation as listed in History.</summary>
+public record AssistantConversationSummaryDto(string Id, string Title, string? ProductId, string? ProductTitle, string LastMessage, DateTime UpdatedAt);
+
+public record AssistantConversationDto(AssistantConversationSummaryDto Conversation, IReadOnlyList<AssistantMessageDto> Messages);
+
+/// <summary>What one question adds to a conversation: the saved question and its answer.</summary>
+public record AssistantExchangeDto(AssistantConversationSummaryDto Conversation, AssistantMessageDto Question, AssistantMessageDto Answer);
