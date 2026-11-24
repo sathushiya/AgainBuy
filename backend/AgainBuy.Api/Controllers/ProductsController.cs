@@ -224,8 +224,8 @@ public class ProductsController(AppDbContext db, IOptions<CloudinaryOptions> clo
         product.Price = request.Price;
         product.OriginalPrice = request.OriginalPrice;
         product.Condition = request.Condition!.Value;
-        product.Brand = request.Brand.Trim();
-        product.Model = request.Model.Trim();
+        product.Brand = request.Brand?.Trim() ?? "";
+        product.Model = request.Model?.Trim() ?? "";
         product.Usage = request.Usage.Trim();
         product.PurchaseYear = request.PurchaseYear;
         product.Description = request.Description.Trim();

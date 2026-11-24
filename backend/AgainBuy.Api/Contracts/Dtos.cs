@@ -47,8 +47,9 @@ public record UpsertListingRequest(
     [Range(1, 100_000_000, ErrorMessage = "Enter a valid selling price.")] decimal Price,
     [Range(1, 100_000_000)] decimal? OriginalPrice,
     [Required] ProductCondition? Condition,
-    [Required, MinLength(2, ErrorMessage = "Add the product brand."), MaxLength(80)] string Brand,
-    [Required, MinLength(1, ErrorMessage = "Add the model."), MaxLength(80)] string Model,
+    // Optional: not every category has them (books have neither, furniture has no model).
+    [MaxLength(80)] string? Brand,
+    [MaxLength(80)] string? Model,
     [Required, MinLength(2, ErrorMessage = "Add how long it was used."), MaxLength(60)] string Usage,
     [Range(1950, 2100, ErrorMessage = "Enter a four-digit year.")] int PurchaseYear,
     [Required, MinLength(20, ErrorMessage = "Add at least 20 characters."), MaxLength(4000)] string Description,
