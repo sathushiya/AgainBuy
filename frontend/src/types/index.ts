@@ -68,8 +68,9 @@ export interface ListingInput {
   price: number;
   originalPrice?: number;
   condition: ProductCondition;
-  brand: string;
-  model: string;
+  /** Optional: only categories with these fields send them. */
+  brand?: string;
+  model?: string;
   usage: string;
   purchaseYear: number;
   description: string;

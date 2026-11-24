@@ -47,6 +47,25 @@ public class ListingSpecificationTests
     }
 
     [Fact]
+    public async Task Brand_and_model_are_optional_for_categories_without_them()
+    {
+        await using var factory = new ApiFactory();
+        var customer = await factory.Customer();
+
+        var book = PhoneListing(new[] { new { key = "author", label = "Author", value = "Robert C. Martin" } });
+        book["title"] = "Clean Code (paperback)";
+        book["category"] = "Books";
+        book.Remove("brand");
+        book.Remove("model");
+
+        var response = await customer.PostAsJsonAsync("/api/products", book);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var listing = await response.Read<ProductDto>();
+        Assert.Equal("", listing.Brand);
+        Assert.Equal("", listing.Model);
+    }
+
+    [Fact]
     public async Task Listings_without_specifications_get_an_empty_list()
     {
         await using var factory = new ApiFactory();
