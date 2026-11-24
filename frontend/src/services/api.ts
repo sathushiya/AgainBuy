@@ -130,7 +130,6 @@ export const api = {
 
   // Transactions
   transactions: (type?: "purchase" | "sale") => request<Transaction[]>("GET", "/api/transactions", { query: { type } }),
-  purchase: (productId: string) => request<Transaction>("POST", "/api/transactions", { body: { productId } }),
   completeTransaction: (id: string) => request<Transaction>("POST", `/api/transactions/${encodeURIComponent(id)}/complete`),
   cancelTransaction: (id: string) => request<Transaction>("POST", `/api/transactions/${encodeURIComponent(id)}/cancel`),
 
