@@ -153,3 +153,8 @@ public record OrderDetailDto(
 public record ReserveRequest([Required] string ProductId);
 
 public record ProposePriceRequest([Range(1, 100_000_000, ErrorMessage = "Enter a valid price.")] decimal Price);
+
+public record RejectPaymentRequest([Required, MinLength(3, ErrorMessage = "Say what is wrong, e.g. no transfer received."), MaxLength(200)] string Reason);
+
+/// <summary>A path (relative to the API) valid for a few minutes; no Authorization header needed.</summary>
+public record FileLinkDto(string Url, DateTime ExpiresAt);

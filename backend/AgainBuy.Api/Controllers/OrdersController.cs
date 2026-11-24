@@ -6,6 +6,7 @@ using AgainBuy.Api.Infrastructure;
 using AgainBuy.Api.Orders;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace AgainBuy.Api.Controllers;
@@ -178,7 +179,109 @@ public class OrdersController(AppDbContext db, Notifier notifier, TimeProvider t
         return await Detail(id, User.UserId(), cancellationToken);
     }
 
+    // ---- Stage 3–4: bank transfer and the seller's verification ---------------
+
+    public const long MaxReceiptBytes = 5 * 1024 * 1024;
+
+    /// <summary>
+    /// The buyer uploads their bank transfer receipt (photo or PDF). This only
+    /// asks the seller to check their account: it never confirms the payment.
+    /// </summary>
+    [HttpPost("{id}/payment-receipt")]
+    [EnableRateLimiting(RateLimitPolicies.Uploads)]
+    [RequestSizeLimit(MaxReceiptBytes + 64 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxReceiptBytes + 64 * 1024)]
+    public async Task<ActionResult<OrderDetailDto>> UploadPaymentReceipt(string id, IFormFile? file, [FromForm] string? reference, CancellationToken cancellationToken)
+    {
+        var order = await FindForParticipant(id, cancellationToken);
+        if (order is null) return NotFound();
+        if (Disallowed(order, OrderActions.UploadReceipt) is { } refused) return refused;
+        if (file is null || file.Length == 0) return InvalidFile("Choose the receipt to upload.");
+        if (file.Length > MaxReceiptBytes) return InvalidFile("Receipts must be 5 MB or smaller.");
+        if (reference?.Trim().Length > 120) return InvalidFile("Keep the transfer reference under 120 characters.");
+
+        await using var content = file.OpenReadStream();
+        var contentType = await FileSignatures.DetectAsync(content, cancellationToken);
+        if (contentType is null) return InvalidFile("Upload a photo or PDF of your bank transfer receipt.");
+        content.Position = 0;
+        using var copy = new MemoryStream();
+        await content.CopyToAsync(copy, cancellationToken);
+
+        var now = time.GetUtcNow().UtcDateTime;
+        await db.OrderFiles.Where(existing => existing.OrderId == id && existing.Kind == OrderFileKind.PaymentReceipt).ExecuteDeleteAsync(cancellationToken);
+        db.OrderFiles.Add(new OrderFile
+        {
+            OrderId = id,
+            Kind = OrderFileKind.PaymentReceipt,
+            ContentType = contentType,
+            FileName = $"payment-receipt-{id}{(contentType == FileSignatures.Pdf ? ".pdf" : "")}",
+            Data = copy.ToArray(),
+            CreatedAt = now,
+        });
+
+        var resubmitted = order.Status == OrderStatus.PaymentVerificationPending;
+        order.PaymentReference = reference?.Trim() ?? "";
+        order.PaymentSubmittedAt = now;
+        Move(order, OrderStatus.PaymentVerificationPending, order.BuyerId, resubmitted ? "Payment receipt replaced" : "Payment receipt uploaded");
+        notifier.Send(order.SellerId, NotificationType.PaymentSubmitted, "Payment receipt uploaded", $"{order.Buyer!.Name} uploaded a bank transfer receipt for {order.Product!.Title} ({Lkr(order.AgreedPrice)}). Check your bank account, then confirm the payment.", order.Id);
+        notifier.Send(order.BuyerId, NotificationType.PaymentSubmitted, "Payment confirmation pending", $"Your receipt for {order.Product.Title} was sent. {order.Seller!.Name} will confirm once the money arrives.", order.Id);
+
+        if (await Save(cancellationToken) is { } conflict) return conflict;
+        return await Detail(id, User.UserId(), cancellationToken);
+    }
+
+    /// <summary>The seller confirms the money reached their account, after checking it themselves.</summary>
+    [HttpPost("{id}/confirm-payment")]
+    public async Task<ActionResult<OrderDetailDto>> ConfirmPayment(string id, CancellationToken cancellationToken)
+    {
+        var order = await FindForParticipant(id, cancellationToken);
+        if (order is null) return NotFound();
+        if (Disallowed(order, OrderActions.ConfirmPayment) is { } refused) return refused;
+
+        order.PaymentConfirmedAt = time.GetUtcNow().UtcDateTime;
+        Move(order, OrderStatus.PaymentConfirmed, order.SellerId, "Payment confirmed by the seller");
+        var next = order.DeliveryMethod == DeliveryOption.Delivery ? "They'll ship it and share the tracking number." : "They'll let you know when it's ready for pickup.";
+        notifier.Send(order.BuyerId, NotificationType.PaymentConfirmed, "Payment confirmed", $"{order.Seller!.Name} confirmed your payment of {Lkr(order.AgreedPrice)} for {order.Product!.Title}. {next}", order.Id);
+
+        if (await Save(cancellationToken) is { } conflict) return conflict;
+        return await Detail(id, User.UserId(), cancellationToken);
+    }
+
+    /// <summary>The seller hasn't received the money; the buyer is asked to check and upload again.</summary>
+    [HttpPost("{id}/reject-payment")]
+    public async Task<ActionResult<OrderDetailDto>> RejectPayment(string id, RejectPaymentRequest request, CancellationToken cancellationToken)
+    {
+        var order = await FindForParticipant(id, cancellationToken);
+        if (order is null) return NotFound();
+        if (Disallowed(order, OrderActions.RejectPayment) is { } refused) return refused;
+
+        order.PaymentSubmittedAt = null;
+        var reason = request.Reason.Trim();
+        Move(order, OrderStatus.PaymentPending, order.SellerId, $"Payment not received: {reason}");
+        notifier.Send(order.BuyerId, NotificationType.PaymentRejected, "Payment not received yet", $"{order.Seller!.Name} couldn't find your payment for {order.Product!.Title}: \"{reason}\". Check the transfer and upload your receipt again.", order.Id);
+
+        if (await Save(cancellationToken) is { } conflict) return conflict;
+        return await Detail(id, User.UserId(), cancellationToken);
+    }
+
+    /// <summary>A short-lived link to the order's payment receipt or delivery receipt, for its buyer or seller only.</summary>
+    [HttpGet("{id}/files/{kind}/link")]
+    public async Task<ActionResult<FileLinkDto>> FileLink(string id, string kind, [FromServices] OrderFileLinks links, CancellationToken cancellationToken)
+    {
+        var userId = User.UserId();
+        if (!await db.Orders.AnyAsync(order => order.Id == id && (order.BuyerId == userId || order.SellerId == userId), cancellationToken)) return NotFound();
+
+        OrderFileKind? fileKind = kind switch { "payment-receipt" => OrderFileKind.PaymentReceipt, "delivery-receipt" => OrderFileKind.DeliveryReceipt, _ => null };
+        if (fileKind is null || !await db.OrderFiles.AnyAsync(file => file.OrderId == id && file.Kind == fileKind, cancellationToken)) return NotFound();
+
+        var (token, expiresAt) = links.Create(id, fileKind.Value);
+        return new FileLinkDto($"/api/files/{Uri.EscapeDataString(token)}", expiresAt);
+    }
+
     // ---- Helpers ------------------------------------------------------------
+
+    private ActionResult InvalidFile(string message) =>
+        ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]> { ["file"] = [message] }));
 
     private static string Lkr(decimal amount) => $"LKR {amount:N0}";
 

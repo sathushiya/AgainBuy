@@ -19,6 +19,9 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddScoped<Notifier>();
+// Signs the short-lived links to private order files.
+builder.Services.AddDataProtection();
+builder.Services.AddSingleton<OrderFileLinks>();
 
 // Listing photos go to Cloudinary. Without credentials the API still runs;
 // only the upload endpoint answers 503.
