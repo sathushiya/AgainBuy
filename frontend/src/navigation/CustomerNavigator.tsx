@@ -1,7 +1,10 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, View } from "react-native";
+import { AgainBuyLogo } from "../components/AgainBuyLogo";
 import { AppIcon, AppIconName } from "../components/AppIcon";
+import { AssistantButton } from "../components/AssistantButton";
 import { useApp } from "../context/AppContext";
 import { ExploreScreen } from "../screens/explore/ExploreScreen";
 import { HomeScreen } from "../screens/home/HomeScreen";
@@ -17,7 +20,7 @@ import { MyListingsScreen, SettingsScreen, WishlistScreen } from "../screens/pro
 import { SellScreen } from "../screens/sell/SellScreen";
 import { RoleProfileScreen, RoleSettingsScreen } from "../screens/shared/RoleProfileScreen";
 import { PurchasesScreen, SalesScreen } from "../screens/transactions/TransactionScreens";
-import { colors, radius, typography } from "../theme";
+import { colors, radius, spacing, typography } from "../theme";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -30,12 +33,18 @@ const icons: Record<string, AppIconName> = {
   Profile: "person-outline",
 };
 
+/** Top bar shared by the main tabs: the logo, and the AI assistant on the right. */
+function TabTopBar() {
+  const insets = useSafeAreaInsets();
+  return <View style={[styles.topBar, { paddingTop: insets.top + spacing.xs }]}><AgainBuyLogo width={118}/><AssistantButton/></View>;
+}
+
 function CustomerTabs() {
   const { unreadMessages, messageAlerts, unreadNotifications, orderAlerts } = useApp();
   return <Tab.Navigator screenOptions={({ route }) => {
     const iconName = icons[route.name] ?? "grid-outline";
     return {
-      headerShown: false,
+      header: () => <TabTopBar/>,
       tabBarActiveTintColor: colors.terracotta,
       tabBarInactiveTintColor: colors.textSecondary,
       tabBarLabelStyle: { ...typography.label, fontSize: 10 },
@@ -48,9 +57,10 @@ function CustomerTabs() {
 export function CustomerNavigator() {
   const { user } = useApp();
   if (user?.role !== "customer") return null;
-  return <Stack.Navigator screenOptions={{ headerTintColor: colors.charcoal, headerShadowVisible: false, headerStyle: { backgroundColor: colors.cream }, contentStyle: { backgroundColor: colors.cream } }}><Stack.Screen name="CustomerTabs" component={CustomerTabs} options={{ headerShown: false }}/><Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }}/><Stack.Screen name="Conversation" component={ConversationScreen} options={{ title: "Conversation" }}/><Stack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ title: "Order details" }}/><Stack.Screen name="Assistant" component={AssistantScreen} options={{ title: "AgainBuy AI" }}/><Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }}/><Stack.Screen name="Orders" component={OrdersScreen} options={({ route }: { route: any }) => ({ title: route.params?.role === "seller" ? "Reserved by customers" : "My orders" })}/><Stack.Screen name="Wishlist" component={WishlistScreen} options={{ headerShown: false }}/><Stack.Screen name="MyListings" component={MyListingsScreen} options={{ title: "My Listings" }}/><Stack.Screen name="Purchases" component={PurchasesScreen} options={{ title: "My Purchases" }}/><Stack.Screen name="Sales" component={SalesScreen} options={{ title: "My Sales" }}/><Stack.Screen name="Settings" component={SettingsScreen} options={{ title: "Settings & Help" }}/><Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} options={{ title: "Personal information" }}/><Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} options={{ title: "Notification preferences" }}/><Stack.Screen name="PrivacySafety" component={PrivacySafetyScreen} options={{ title: "Privacy and safety" }}/><Stack.Screen name="SavedLocations" component={SavedLocationsScreen} options={{ title: "Saved locations" }}/><Stack.Screen name="BankDetails" component={BankDetailsScreen} options={{ title: "Bank transfer details" }}/><Stack.Screen name="BuyingSafely" component={BuyingSafelyScreen} options={{ title: "Buying safely" }}/><Stack.Screen name="SellingGuidelines" component={SellingGuidelinesScreen} options={{ title: "Selling guidelines" }}/><Stack.Screen name="ReportProblem" component={ReportProblemScreen} options={{ title: "Report a problem" }}/><Stack.Screen name="ContactSupport" component={ContactSupportScreen} options={{ title: "Contact support" }}/><Stack.Screen name="RoleSettings" component={RoleSettingsScreen} options={{ title: "Settings & Support" }}/></Stack.Navigator>;
+  return <Stack.Navigator screenOptions={({ route }) => ({ headerTintColor: colors.charcoal, headerShadowVisible: false, headerStyle: { backgroundColor: colors.cream }, contentStyle: { backgroundColor: colors.cream }, headerRight: route.name === "Assistant" ? undefined : () => <AssistantButton/> })}><Stack.Screen name="CustomerTabs" component={CustomerTabs} options={{ headerShown: false }}/><Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }}/><Stack.Screen name="Conversation" component={ConversationScreen} options={{ title: "Conversation" }}/><Stack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ title: "Order details" }}/><Stack.Screen name="Assistant" component={AssistantScreen} options={{ title: "AgainBuy AI" }}/><Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }}/><Stack.Screen name="Orders" component={OrdersScreen} options={({ route }: { route: any }) => ({ title: route.params?.role === "seller" ? "Reserved by customers" : "My orders" })}/><Stack.Screen name="Wishlist" component={WishlistScreen} options={{ headerShown: false }}/><Stack.Screen name="MyListings" component={MyListingsScreen} options={{ title: "My Listings" }}/><Stack.Screen name="Purchases" component={PurchasesScreen} options={{ title: "My Purchases" }}/><Stack.Screen name="Sales" component={SalesScreen} options={{ title: "My Sales" }}/><Stack.Screen name="Settings" component={SettingsScreen} options={{ title: "Settings & Help" }}/><Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} options={{ title: "Personal information" }}/><Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} options={{ title: "Notification preferences" }}/><Stack.Screen name="PrivacySafety" component={PrivacySafetyScreen} options={{ title: "Privacy and safety" }}/><Stack.Screen name="SavedLocations" component={SavedLocationsScreen} options={{ title: "Saved locations" }}/><Stack.Screen name="BankDetails" component={BankDetailsScreen} options={{ title: "Bank transfer details" }}/><Stack.Screen name="BuyingSafely" component={BuyingSafelyScreen} options={{ title: "Buying safely" }}/><Stack.Screen name="SellingGuidelines" component={SellingGuidelinesScreen} options={{ title: "Selling guidelines" }}/><Stack.Screen name="ReportProblem" component={ReportProblemScreen} options={{ title: "Report a problem" }}/><Stack.Screen name="ContactSupport" component={ContactSupportScreen} options={{ title: "Contact support" }}/><Stack.Screen name="RoleSettings" component={RoleSettingsScreen} options={{ title: "Settings & Support" }}/></Stack.Navigator>;
 }
 
 const styles = StyleSheet.create({
+  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.md, paddingBottom: spacing.xs, backgroundColor: colors.cream },
   sellIcon: { width: 48, height: 48, marginTop: -22, borderRadius: radius.md, backgroundColor: colors.terracotta, borderWidth: 4, borderColor: colors.white, alignItems: "center", justifyContent: "center" },
 });

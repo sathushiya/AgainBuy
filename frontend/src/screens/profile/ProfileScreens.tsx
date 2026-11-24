@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { AppIcon } from "../../components/AppIcon";
+import { AssistantButton } from "../../components/AssistantButton";
 import { BackButton, EmptyState, ErrorMessage, LoadingIndicator, ScreenContainer, SectionHeader, StatusBadge } from "../../components/core";
 import { ProductCard, ProductGrid } from "../../components/marketplace";
 import { useApp } from "../../context/AppContext";
@@ -13,7 +14,7 @@ export function WishlistScreen({ navigation }: { navigation: any }) {
   const { data = [], error, loading } = useApiData(() => api.wishlist());
   // Hide items un-hearted on this screen without waiting for a reload.
   const items = data.filter((item) => wishlist.includes(item.id));
-  return <View style={styles.listScreen}><View style={styles.listHeader}><BackButton onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate("CustomerTabs", { screen: "Home" })}/><Text style={styles.pageTitle}>Wishlist</Text><Text style={styles.meta}>Saved products to revisit later</Text>{error && <ErrorMessage message={error}/>}</View>{loading && data.length === 0 ? <LoadingIndicator/> : <ProductGrid data={items} wishlist={wishlist} onWishlist={toggleWishlist} onProduct={(item) => navigation.navigate("ProductDetail", { id: item.id })} ListEmptyComponent={<EmptyState icon="heart-outline" title="Your wishlist is empty" message="Save products you want to compare or revisit." action="Explore products" onAction={() => navigation.navigate("CustomerTabs", { screen: "Explore" })}/>}/>}</View>;
+  return <View style={styles.listScreen}><View style={styles.listHeader}><View style={styles.listTopBar}><BackButton onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate("CustomerTabs", { screen: "Home" })}/><AssistantButton/></View><Text style={styles.pageTitle}>Wishlist</Text><Text style={styles.meta}>Saved products to revisit later</Text>{error && <ErrorMessage message={error}/>}</View>{loading && data.length === 0 ? <LoadingIndicator/> : <ProductGrid data={items} wishlist={wishlist} onWishlist={toggleWishlist} onProduct={(item) => navigation.navigate("ProductDetail", { id: item.id })} ListEmptyComponent={<EmptyState icon="heart-outline" title="Your wishlist is empty" message="Save products you want to compare or revisit." action="Explore products" onAction={() => navigation.navigate("CustomerTabs", { screen: "Explore" })}/>}/>}</View>;
 }
 
 export function MyListingsScreen({ navigation }: { navigation: any }) {
@@ -36,7 +37,7 @@ export function MyListingsScreen({ navigation }: { navigation: any }) {
 
 // Each row opens its own page; route names are registered in CustomerNavigator.
 const ACCOUNT_SETTINGS = [["Personal information", "PersonalInfo"], ["Notification preferences", "NotificationPreferences"], ["Privacy and safety", "PrivacySafety"], ["Saved locations", "SavedLocations"], ["Bank transfer details", "BankDetails"]] as const;
-const SUPPORT_SETTINGS = [["Ask AgainBuy AI", "Assistant"], ["Buying safely", "BuyingSafely"], ["Selling guidelines", "SellingGuidelines"], ["Report a problem", "ReportProblem"], ["Contact support", "ContactSupport"]] as const;
+const SUPPORT_SETTINGS = [["Buying safely", "BuyingSafely"], ["Selling guidelines", "SellingGuidelines"], ["Report a problem", "ReportProblem"], ["Contact support", "ContactSupport"]] as const;
 
 export function SettingsScreen({ navigation }: { navigation: any }) {
   return <ScreenContainer><Text style={styles.pageTitle}>Settings & Help</Text><Text style={styles.meta}>Account preferences and marketplace support</Text><SectionHeader title="Account"/>{ACCOUNT_SETTINGS.map(([label, route]) => <Setting key={label} label={label} onPress={() => navigation.navigate(route)}/>)}<SectionHeader title="Support"/>{SUPPORT_SETTINGS.map(([label, route]) => <Setting key={label} label={label} onPress={() => navigation.navigate(route)}/>)}<View style={styles.help}><AppIcon name="shield-checkmark-outline" size={24} color={colors.green}/><View style={styles.flex}><Text style={styles.helpTitle}>Stay safe when meeting</Text><Text style={styles.helpText}>Meet in a public place, inspect the product, and never send advance payments to unknown sellers.</Text></View></View></ScreenContainer>;
@@ -51,6 +52,7 @@ const styles = StyleSheet.create({
   meta: { ...typography.caption, color: colors.textSecondary, marginTop: 3 },
   menuLabel: { ...typography.medium, color: colors.charcoal, flex: 1 },
   listScreen: { flex: 1, backgroundColor: colors.cream, paddingTop: spacing.xl },
+  listTopBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   listHeader: { paddingHorizontal: spacing.md, marginBottom: spacing.sm },
   listing: { marginTop: spacing.md },
   listingFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.xs },
