@@ -47,6 +47,78 @@ namespace AgainBuy.Api.Data.Migrations
                     b.ToTable("ActivityLogs");
                 });
 
+            modelBuilder.Entity("AgainBuy.Api.Domain.AssistantConversation", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProductId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("UserId", "UpdatedAt");
+
+                    b.ToTable("AssistantConversations");
+                });
+
+            modelBuilder.Entity("AgainBuy.Api.Domain.AssistantMessage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<string>("ConversationId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.PrimitiveCollection<List<string>>("ProductIds")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.PrimitiveCollection<List<string>>("Suggestions")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId", "Id");
+
+                    b.ToTable("AssistantMessages");
+                });
+
             modelBuilder.Entity("AgainBuy.Api.Domain.Category", b =>
                 {
                     b.Property<int>("Id")
@@ -702,6 +774,29 @@ namespace AgainBuy.Api.Data.Migrations
                     b.ToTable("WishlistItems");
                 });
 
+            modelBuilder.Entity("AgainBuy.Api.Domain.AssistantConversation", b =>
+                {
+                    b.HasOne("AgainBuy.Api.Domain.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("AgainBuy.Api.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AgainBuy.Api.Domain.AssistantMessage", b =>
+                {
+                    b.HasOne("AgainBuy.Api.Domain.AssistantConversation", null)
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("AgainBuy.Api.Domain.Conversation", b =>
                 {
                     b.HasOne("AgainBuy.Api.Domain.User", "Buyer")
@@ -850,6 +945,11 @@ namespace AgainBuy.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("AgainBuy.Api.Domain.AssistantConversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("AgainBuy.Api.Domain.Conversation", b =>
