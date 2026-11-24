@@ -80,6 +80,32 @@ export function PrivacySafetyScreen() {
   return <ScreenContainer keyboardAware><Text style={styles.sectionTitle}>Change password</Text><View style={styles.form}><AppTextInput label="Current password" secureTextEntry value={current} onChangeText={setCurrent}/><AppTextInput label="New password" secureTextEntry value={next} onChangeText={setNext} error={nextError}/><AppTextInput label="Confirm new password" secureTextEntry value={confirm} onChangeText={setConfirm} error={confirmError}/>{notice && (notice.ok ? <Text style={styles.success}>{notice.text}</Text> : <ErrorMessage message={notice.text}/>)}<PrimaryButton title="Change password" disabled={!ready} loading={saving} onPress={changePassword}/></View><Text style={[styles.sectionTitle, styles.spaced]}>What other people see</Text><InfoCard icon="person-outline" title="Visible on your listings and messages" text="Your name, profile photo, rating and the pickup location you choose for each listing."/><InfoCard icon="shield-checkmark-outline" title="Never shown to other users" text="Your email address, your password and your saved locations. AgainBuy staff will never ask for your password."/><InfoCard icon="alert-circle-outline" title="Stay safe" text="Keep conversations in AgainBuy messages, never share bank details, and report anything suspicious from Settings & Help."/></ScreenContainer>;
 }
 
+/** Where buyers pay by bank transfer; shown to a buyer only after both parties agree a deal. */
+export function BankDetailsScreen() {
+  const { data: settings, error, loading, setData } = useApiData(() => api.accountSettings());
+  const [draft, setDraft] = React.useState<string | null>(null);
+  const [saving, setSaving] = React.useState(false);
+  const [notice, setNotice] = React.useState<{ ok: boolean; text: string } | null>(null);
+  const value = draft ?? settings?.bankDetails ?? "";
+
+  const save = async () => {
+    if (!settings) return;
+    setSaving(true);
+    setNotice(null);
+    try {
+      setData(await api.updateAccountSettings({ ...settings, bankDetails: value.trim() }));
+      setDraft(null);
+      setNotice({ ok: true, text: "Bank details saved." });
+    } catch (caught) {
+      setNotice({ ok: false, text: errorMessage(caught) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return <ScreenContainer keyboardAware><Text style={styles.hint}>Buyers pay sellers directly by bank transfer. Add the account they should pay into; you need this before you can agree to a deal as a seller.</Text>{error && <ErrorMessage message={error}/>}{loading && !settings ? <LoadingIndicator/> : <View style={styles.form}><AppTextInput label="Bank transfer details" value={value} onChangeText={setDraft} multiline placeholder={"Account holder: Maya Perera\nBank: Commercial Bank\nAccount number: 8012345678\nBranch: Colombo 05"} error={value.length > 500 ? "Keep it under 500 characters." : undefined}/>{notice && (notice.ok ? <Text style={styles.success}>{notice.text}</Text> : <ErrorMessage message={notice.text}/>)}<PrimaryButton title="Save bank details" disabled={!settings || value.length > 500 || draft === null} loading={saving} onPress={save}/></View>}<InfoCard icon="shield-checkmark-outline" title="Who sees this" text="Only buyers you've agreed a deal with, and only from the moment you both agree. AgainBuy never handles the money."/></ScreenContainer>;
+}
+
 const NOTIFICATION_OPTIONS: { key: "notifyMessages" | "notifyOrders" | "notifyNews"; title: string; text: string }[] = [
   { key: "notifyMessages", title: "New message alerts", text: "Show a badge on Messages when a buyer or seller writes to you." },
   { key: "notifyOrders", title: "Purchase and sale updates", text: "When someone reserves your item, or a meetup is completed or cancelled." },

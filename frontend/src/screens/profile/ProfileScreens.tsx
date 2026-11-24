@@ -35,7 +35,7 @@ export function MyListingsScreen({ navigation }: { navigation: any }) {
 }
 
 // Each row opens its own page; route names are registered in CustomerNavigator.
-const ACCOUNT_SETTINGS = [["Personal information", "PersonalInfo"], ["Notification preferences", "NotificationPreferences"], ["Privacy and safety", "PrivacySafety"], ["Saved locations", "SavedLocations"]] as const;
+const ACCOUNT_SETTINGS = [["Personal information", "PersonalInfo"], ["Notification preferences", "NotificationPreferences"], ["Privacy and safety", "PrivacySafety"], ["Saved locations", "SavedLocations"], ["Bank transfer details", "BankDetails"]] as const;
 const SUPPORT_SETTINGS = [["Buying safely", "BuyingSafely"], ["Selling guidelines", "SellingGuidelines"], ["Report a problem", "ReportProblem"], ["Contact support", "ContactSupport"]] as const;
 
 export function SettingsScreen({ navigation }: { navigation: any }) {
