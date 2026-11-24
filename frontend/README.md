@@ -44,6 +44,7 @@ Useful checks:
 ```bash
 pnpm typecheck
 pnpm test:roles          # signs in through the API; needs the backend running
+pnpm test:fields         # checks category field rules (no backend needed)
 pnpm exec expo export --platform android
 pnpm exec expo export --platform ios
 ```
@@ -73,7 +74,7 @@ Permissions are centralized in `src/config/permissions.ts`. The API enforces the
 - Search and filtering by category and condition
 - Product details with prices, usage, year, condition, defects, accessories, seller, and location
 - Wishlist saved to your account
-- Sell-an-item form with up to 8 photos (resized, then uploaded to Cloudinary through the API), reason for selling, delivery availability (Delivery / Meet-up / Both), Zod validation, preview, and publishing
+- Selling in three steps: listing details (up to 8 photos uploaded to Cloudinary, reason for selling, delivery availability) → category-specific details for the chosen category and subtype (e.g. Phones: storage and battery health; Furniture → Sofa: seats and dimensions), validated per category → review and publish. Buyers see the details under Specifications
 - My Listings with deactivation and reactivation
 - Messaging with sellers, unread counts, and new conversations from product pages
 - Reserving items, plus purchase and sales history with complete/cancel
