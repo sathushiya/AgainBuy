@@ -84,7 +84,7 @@ How it works: the app shrinks each photo to 1600px JPEG and sends it to `POST /a
    ```
 3. Restart the API.
 
-How it works: the app keeps the chat and sends it (latest 10 turns, each up to 1,000 characters) to `POST /api/assistant/chat`, with the product ID when asked from a product page. The API adds the app guide (`Assistant/AssistantPrompt.cs`), the category list and that listing's details, and offers the model a `search_listings` tool (`Assistant/ListingSearch.cs`). When someone asks what is for sale, the model calls it (keywords, category, price range, condition, sort); the API searches **Active** listings in PostgreSQL, the same ones people can browse, and sends back a compact summary. The model may search up to three times, then answers. The reply includes the listings it mentions as `products`, which the app shows as cards. Nothing is stored.
+How it works: conversations are saved in PostgreSQL (`AssistantConversations`, `AssistantMessages`), each owned by the signed-in user; another user's conversation answers 404. The app sends one question at a time (up to 1,000 characters) and the API builds the context from the latest 10 saved turns, so a chat reopened from History, even after signing in again, continues where it left off. A question and its answer are saved together only after the answer is produced, so a failed call leaves nothing half-saved. Each answer ends with four follow-up questions, written by the model in the same call below a `FOLLOW-UPS:` line and split off by `Assistant/FollowUps.cs` (defaults fill any gap). A conversation holds up to 200 messages. The API adds the app guide (`Assistant/AssistantPrompt.cs`), the category list and that listing's details, and offers the model a `search_listings` tool (`Assistant/ListingSearch.cs`). When someone asks what is for sale, the model calls it (keywords, category, price range, condition, sort); the API searches **Active** listings in PostgreSQL, the same ones people can browse, and sends back a compact summary. The model may search up to three times, then answers. The reply includes the listings it mentions as `products`, which the app shows as cards.
 
 The free Groq plan allows about 8,000 tokens per minute for `openai/gpt-oss-20b`, and a product question uses roughly 3,000-5,000 (two model calls). When Groq asks to wait a few seconds, the API waits once (up to `Groq:MaxRetryWait`, 12 s) and retries; longer waits answer 503 "busy". For real traffic, upgrade the Groq plan. When the app's features or rules change, update the guide too.
 
@@ -159,7 +159,11 @@ All routes are under `/api`. A 🔒 means a bearer token is required; the policy
 **Assistant**
 | Method | Route | Access |
 |---|---|---|
-| POST | `/assistant/chat` `{ messages: [{ role, content }], productId? }` → `{ reply, products }` | 🔒 any role; 503 if Groq isn't set up or is busy, 502 if it fails |
+| GET | `/assistant/conversations` | 🔒 any role; your conversations, newest first |
+| POST | `/assistant/conversations` `{ message, productId? }` → `{ conversation, question, answer }` | 🔒 any role; starts a conversation. Answers carry `products` (cards) and four `suggestions`. 503 if Groq isn't set up or is busy, 502 if it fails |
+| GET | `/assistant/conversations/{id}` | 🔒 owner only; all messages |
+| POST | `/assistant/conversations/{id}/messages` `{ message }` | 🔒 owner only; next question, answered with the saved context. 409 when the chat is full |
+| DELETE | `/assistant/conversations/{id}` | 🔒 owner only |
 
 **Administration** (admin)
 | Method | Route | Access |
