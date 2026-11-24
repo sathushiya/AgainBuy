@@ -12,4 +12,5 @@ public record AssistantChatRequest(
     // Set when the chat was opened from a product page.
     string? ProductId);
 
-public record AssistantReplyDto(string Reply);
+// Products: listings the assistant found for this answer, shown as cards in the app.
+public record AssistantReplyDto(string Reply, IReadOnlyList<ProductDto> Products);
