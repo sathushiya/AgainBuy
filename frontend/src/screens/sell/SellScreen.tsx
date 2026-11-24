@@ -35,7 +35,6 @@ const MAX_PHOTOS = 8;
 const DELIVERY_OPTIONS: readonly { value: DeliveryOption; label: string }[] = [
   { value: "Delivery", label: "Delivery Available" },
   { value: "Meet-up", label: "Pickup Only" },
-  { value: "Both", label: "Both" },
 ];
 
 export function SellScreen({ navigation }: { navigation: any }) {

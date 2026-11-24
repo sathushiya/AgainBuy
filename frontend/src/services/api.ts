@@ -2,7 +2,17 @@ import { API_URL } from "../config/apiUrl";
 import type {
   AccountSettings, AdminStats, AppUser, AuthResponse, Category, Conversation, ConversationDetail, Facility, ListingInput, Message,
   ModerationCase, PagedResult, PlatformUser, Product, SupportTicket, SupportTicketType, Transaction, UserRole, AccountStatus,
+  AppNotification, CourierService, OrderDetail, OrderSummary,
 } from "../types";
+
+/** A local file to upload: a URI on native, a Blob on web. */
+export type UploadFile = { uri: string; name: string; type: string } | { webFile: Blob; name: string };
+
+function appendFile(form: FormData, file: UploadFile) {
+  if ("webFile" in file) form.append("file", file.webFile, file.name);
+  // React Native's FormData accepts { uri, name, type } for local files.
+  else form.append("file", file as unknown as Blob);
+}
 
 export class ApiError extends Error {
   constructor(message: string, public readonly status: number, public readonly fieldErrors: Record<string, string[]> = {}) {
@@ -98,11 +108,9 @@ export const api = {
   activateListing: (id: string) => request<Product>("POST", `/api/products/${encodeURIComponent(id)}/activate`),
 
   /** Uploads one listing photo to Cloudinary via the API. Native passes a file URI; web passes a Blob. */
-  uploadImage: (file: { uri: string; name: string; type: string } | { webFile: Blob; name: string }) => {
+  uploadImage: (file: UploadFile) => {
     const form = new FormData();
-    if ("webFile" in file) form.append("file", file.webFile, file.name);
-    // React Native's FormData accepts { uri, name, type } for local files.
-    else form.append("file", file as unknown as Blob);
+    appendFile(form, file);
     return request<{ url: string; width: number; height: number }>("POST", "/api/uploads/images", { form });
   },
 
@@ -125,6 +133,35 @@ export const api = {
   purchase: (productId: string) => request<Transaction>("POST", "/api/transactions", { body: { productId } }),
   completeTransaction: (id: string) => request<Transaction>("POST", `/api/transactions/${encodeURIComponent(id)}/complete`),
   cancelTransaction: (id: string) => request<Transaction>("POST", `/api/transactions/${encodeURIComponent(id)}/cancel`),
+
+  // Orders: reserve → negotiate → pay → deliver
+  reserve: (productId: string) => request<OrderDetail>("POST", "/api/orders", { body: { productId } }),
+  orders: (as: "buyer" | "seller") => request<OrderSummary[]>("GET", "/api/orders", { query: { as } }),
+  order: (id: string) => request<OrderDetail>("GET", `/api/orders/${encodeURIComponent(id)}`),
+  proposePrice: (id: string, price: number) => request<OrderDetail>("POST", `/api/orders/${encodeURIComponent(id)}/price`, { body: { price } }),
+  agreeDeal: (id: string) => request<OrderDetail>("POST", `/api/orders/${encodeURIComponent(id)}/agree`),
+  cancelReservation: (id: string) => request<OrderDetail>("POST", `/api/orders/${encodeURIComponent(id)}/cancel`),
+  uploadPaymentReceipt: (id: string, file: UploadFile, reference: string) => {
+    const form = new FormData();
+    appendFile(form, file);
+    form.append("reference", reference);
+    return request<OrderDetail>("POST", `/api/orders/${encodeURIComponent(id)}/payment-receipt`, { form });
+  },
+  confirmPayment: (id: string) => request<OrderDetail>("POST", `/api/orders/${encodeURIComponent(id)}/confirm-payment`),
+  rejectPayment: (id: string, reason: string) => request<OrderDetail>("POST", `/api/orders/${encodeURIComponent(id)}/reject-payment`, { body: { reason } }),
+  shipOrder: (id: string, shipment: { courier?: CourierService; trackingNumber: string; deliveryNotes?: string }) =>
+    request<OrderDetail>("POST", `/api/orders/${encodeURIComponent(id)}/ship`, { body: shipment }),
+  readyForPickup: (id: string, pickupNotes?: string) => request<OrderDetail>("POST", `/api/orders/${encodeURIComponent(id)}/ready-for-pickup`, { body: { pickupNotes } }),
+  confirmDelivery: (id: string) => request<OrderDetail>("POST", `/api/orders/${encodeURIComponent(id)}/confirm-delivery`),
+  /** A full URL to a private order file, valid for a few minutes and openable without a token. */
+  orderFileUrl: async (id: string, kind: "payment-receipt" | "delivery-receipt") =>
+    `${API_URL}${(await request<{ url: string; expiresAt: string }>("GET", `/api/orders/${encodeURIComponent(id)}/files/${kind}/link`)).url}`,
+
+  // Notifications
+  notifications: () => request<AppNotification[]>("GET", "/api/notifications"),
+  notificationUnreadCount: () => request<{ count: number }>("GET", "/api/notifications/unread-count"),
+  markNotificationRead: (id: number) => request<void>("POST", `/api/notifications/${id}/read`),
+  markAllNotificationsRead: () => request<void>("POST", "/api/notifications/read-all"),
 
   // Administration
   adminStats: () => request<AdminStats>("GET", "/api/admin/stats"),
