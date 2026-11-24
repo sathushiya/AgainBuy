@@ -108,7 +108,9 @@ export interface Conversation {
 export interface Message {
   id: number;
   senderName: string;
+  /** May be empty when the message is just a photo. */
   body: string;
+  imageUrl: string | null;
   sentAt: string;
   isMine: boolean;
 }
