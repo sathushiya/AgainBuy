@@ -113,7 +113,7 @@ const NOTIFICATION_OPTIONS: { key: "notifyMessages" | "notifyOrders" | "notifyNe
 ];
 
 export function NotificationPreferencesScreen() {
-  const { setMessageAlerts } = useApp();
+  const { setMessageAlerts, setOrderAlerts } = useApp();
   const { data: settings, error, loading, setData } = useApiData(() => api.accountSettings());
   const [saveError, setSaveError] = React.useState<string | null>(null);
 
@@ -123,6 +123,7 @@ export function NotificationPreferencesScreen() {
     const next: AccountSettings = { ...settings, [key]: value };
     setData(next);
     if (key === "notifyMessages") setMessageAlerts(value);
+    if (key === "notifyOrders") setOrderAlerts(value);
     setSaveError(null);
     try {
       setData(await api.updateAccountSettings(next));
@@ -130,11 +131,12 @@ export function NotificationPreferencesScreen() {
       // Put the switch back so it never shows a setting that wasn't saved.
       setData(previous);
       if (key === "notifyMessages") setMessageAlerts(previous.notifyMessages);
+      if (key === "notifyOrders") setOrderAlerts(previous.notifyOrders);
       setSaveError(errorMessage(caught));
     }
   };
 
-  return <ScreenContainer>{(error || saveError) && <ErrorMessage message={(saveError ?? error)!}/>}{loading && !settings ? <LoadingIndicator/> : settings && NOTIFICATION_OPTIONS.map((option) => <View key={option.key} style={styles.toggleRow}><View style={styles.flex}><Text style={styles.infoTitle}>{option.title}</Text><Text style={styles.hint}>{option.text}</Text></View><Switch accessibilityLabel={option.title} value={settings[option.key]} onValueChange={(value) => toggle(option.key, value)} trackColor={{ false: colors.border, true: colors.terracotta }} thumbColor={colors.white}/></View>)}<Text style={styles.footnote}>Message alerts apply right away. Your other choices are saved to your account and used when AgainBuy sends purchase updates and news.</Text></ScreenContainer>;
+  return <ScreenContainer>{(error || saveError) && <ErrorMessage message={(saveError ?? error)!}/>}{loading && !settings ? <LoadingIndicator/> : settings && NOTIFICATION_OPTIONS.map((option) => <View key={option.key} style={styles.toggleRow}><View style={styles.flex}><Text style={styles.infoTitle}>{option.title}</Text><Text style={styles.hint}>{option.text}</Text></View><Switch accessibilityLabel={option.title} value={settings[option.key]} onValueChange={(value) => toggle(option.key, value)} trackColor={{ false: colors.border, true: colors.terracotta }} thumbColor={colors.white}/></View>)}<Text style={styles.footnote}>Message alerts and purchase and sale updates apply right away (they control the Messages and Profile badges). Tips and news are saved for when AgainBuy sends announcements.</Text></ScreenContainer>;
 }
 
 const MAX_LOCATIONS = 10;

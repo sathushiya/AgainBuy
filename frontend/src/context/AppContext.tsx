@@ -15,6 +15,12 @@ interface AppContextValue {
   /** The "New message alerts" preference; when off, unread badges are hidden. */
   messageAlerts: boolean;
   setMessageAlerts: (enabled: boolean) => void;
+  /** Unread order notifications (reservations, payments, shipping); shown on the Profile tab. */
+  unreadNotifications: number;
+  refreshNotifications: () => void;
+  /** The "Purchase and sale updates" preference; when off, the notification badge is hidden. */
+  orderAlerts: boolean;
+  setOrderAlerts: (enabled: boolean) => void;
   signIn: (email: string, password: string) => Promise<boolean>;
   /** Resolves to an error message, or null on success. */
   register: (name: string, email: string, password: string) => Promise<string | null>;
@@ -37,6 +43,8 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [messageAlerts, setMessageAlerts] = useState(true);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [orderAlerts, setOrderAlerts] = useState(true);
 
   const logout = useCallback(() => {
     authService.signOut();
@@ -44,6 +52,8 @@ export function AppProvider({ children }: PropsWithChildren) {
     setWishlist([]);
     setUnreadMessages(0);
     setMessageAlerts(true);
+    setUnreadNotifications(0);
+    setOrderAlerts(true);
     setAuthError(null);
   }, []);
 
@@ -60,7 +70,12 @@ export function AppProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (user?.role !== "customer") return;
     api.wishlistIds().then(setWishlist).catch(() => setWishlist([]));
-    api.accountSettings().then((settings) => setMessageAlerts(settings.notifyMessages)).catch(() => {});
+    api.accountSettings().then((settings) => { setMessageAlerts(settings.notifyMessages); setOrderAlerts(settings.notifyOrders); }).catch(() => {});
+  }, [user]);
+
+  const refreshNotifications = useCallback(() => {
+    if (user?.role !== "customer") return;
+    api.notificationUnreadCount().then(({ count }) => setUnreadNotifications(count)).catch(() => {});
   }, [user]);
 
   const refreshUnreadMessages = useCallback(() => {
@@ -73,9 +88,10 @@ export function AppProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (user?.role !== "customer") return;
     refreshUnreadMessages();
-    const timer = setInterval(refreshUnreadMessages, UNREAD_POLL_MS);
+    refreshNotifications();
+    const timer = setInterval(() => { refreshUnreadMessages(); refreshNotifications(); }, UNREAD_POLL_MS);
     return () => clearInterval(timer);
-  }, [user, refreshUnreadMessages]);
+  }, [user, refreshUnreadMessages, refreshNotifications]);
 
   const value = useMemo<AppContextValue>(() => ({
     user,
@@ -86,6 +102,10 @@ export function AppProvider({ children }: PropsWithChildren) {
     refreshUnreadMessages,
     messageAlerts,
     setMessageAlerts,
+    unreadNotifications,
+    refreshNotifications,
+    orderAlerts,
+    setOrderAlerts,
     async signIn(email, password) {
       if (isAuthenticating) return false;
       setIsAuthenticating(true);
@@ -118,7 +138,7 @@ export function AppProvider({ children }: PropsWithChildren) {
     },
     clearAuthError() { setAuthError(null); },
     hasPermission(permission) { return canAccess(user?.role, permission); },
-  }), [user, wishlist, unreadMessages, refreshUnreadMessages, messageAlerts, isAuthenticating, authError, logout]);
+  }), [user, wishlist, unreadMessages, refreshUnreadMessages, messageAlerts, unreadNotifications, refreshNotifications, orderAlerts, isAuthenticating, authError, logout]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

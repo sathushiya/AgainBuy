@@ -10,6 +10,7 @@ import { UserRole } from "../../types";
 // [icon, label, route, route params]
 const roleActions: Record<UserRole, Array<[AppIconName, string, string, object?]>> = {
   customer: [
+    ["notifications-outline", "Notifications", "Notifications"],
     ["receipt-outline", "My orders", "Orders", { role: "buyer" }],
     ["list-outline", "Reserved by customers", "Orders", { role: "seller" }],
     ["cube-outline", "My Listings", "MyListings"],
@@ -27,10 +28,10 @@ const roleActions: Record<UserRole, Array<[AppIconName, string, string, object?]
 };
 
 export function RoleProfileScreen({ navigation }: { navigation: any }) {
-  const { user, logout } = useApp();
+  const { user, logout, unreadNotifications } = useApp();
   const [confirm, setConfirm] = React.useState(false);
   if (!user) return null;
-  return <ScreenContainer><Text style={styles.title}>Profile</Text><ProfileHeader user={user}/><View style={styles.summary}><View style={styles.summaryItem}><Text style={styles.summaryValue}>{user.role === "customer" ? "4.9" : "Admin"}</Text><Text style={styles.summaryLabel}>{user.role === "customer" ? "Community rating" : "Access level"}</Text></View><View style={styles.summaryItem}><Text style={styles.summaryValue}>{user.role === "customer" ? "2" : "1,284"}</Text><Text style={styles.summaryLabel}>{user.role === "customer" ? "Completed trades" : "Platform users"}</Text></View></View><View style={styles.menu}>{roleActions[user.role].map(([icon, label, route, params]) => <Pressable accessibilityRole="button" key={label} onPress={() => navigation.navigate(route, params)} style={styles.row}><View style={styles.rowIcon}><AppIcon name={icon} size={20} color={colors.terracotta}/></View><Text style={styles.rowText}>{label}</Text><AppIcon name="chevron-forward" size={18} color={colors.textSecondary}/></Pressable>)}<Pressable accessibilityRole="button" onPress={() => navigation.navigate("RoleSettings")} style={styles.row}><View style={styles.rowIcon}><AppIcon name="help-circle-outline" size={20} color={colors.terracotta}/></View><Text style={styles.rowText}>Help & Support</Text><AppIcon name="chevron-forward" size={18} color={colors.textSecondary}/></Pressable></View><LogoutButton onPress={() => setConfirm(true)}/><Text style={styles.note}>Mock role authorization only. Production permissions must be enforced by the backend.</Text><ConfirmDialog visible={confirm} destructive title="Log out of AgainBuy?" message="Your current role session will be cleared and the navigation stack will return to the shared login screen." confirmLabel="Log out" onCancel={() => setConfirm(false)} onConfirm={() => { setConfirm(false); logout(); }}/></ScreenContainer>;
+  return <ScreenContainer><Text style={styles.title}>Profile</Text><ProfileHeader user={user}/><View style={styles.summary}><View style={styles.summaryItem}><Text style={styles.summaryValue}>{user.role === "customer" ? "4.9" : "Admin"}</Text><Text style={styles.summaryLabel}>{user.role === "customer" ? "Community rating" : "Access level"}</Text></View><View style={styles.summaryItem}><Text style={styles.summaryValue}>{user.role === "customer" ? "2" : "1,284"}</Text><Text style={styles.summaryLabel}>{user.role === "customer" ? "Completed trades" : "Platform users"}</Text></View></View><View style={styles.menu}>{roleActions[user.role].map(([icon, label, route, params]) => <Pressable accessibilityRole="button" key={label} onPress={() => navigation.navigate(route, params)} style={styles.row}><View style={styles.rowIcon}><AppIcon name={icon} size={20} color={colors.terracotta}/></View><Text style={styles.rowText}>{label}</Text>{route === "Notifications" && unreadNotifications > 0 && <View style={styles.count}><Text style={styles.countText}>{unreadNotifications > 99 ? "99+" : unreadNotifications}</Text></View>}<AppIcon name="chevron-forward" size={18} color={colors.textSecondary}/></Pressable>)}<Pressable accessibilityRole="button" onPress={() => navigation.navigate("RoleSettings")} style={styles.row}><View style={styles.rowIcon}><AppIcon name="help-circle-outline" size={20} color={colors.terracotta}/></View><Text style={styles.rowText}>Help & Support</Text><AppIcon name="chevron-forward" size={18} color={colors.textSecondary}/></Pressable></View><LogoutButton onPress={() => setConfirm(true)}/><Text style={styles.note}>Mock role authorization only. Production permissions must be enforced by the backend.</Text><ConfirmDialog visible={confirm} destructive title="Log out of AgainBuy?" message="Your current role session will be cleared and the navigation stack will return to the shared login screen." confirmLabel="Log out" onCancel={() => setConfirm(false)} onConfirm={() => { setConfirm(false); logout(); }}/></ScreenContainer>;
 }
 
 export function RoleSettingsScreen() {
@@ -46,6 +47,8 @@ const styles = StyleSheet.create({
   summaryItem: { flex: 1, alignItems: "center" },
   summaryValue: { ...typography.title, color: colors.white },
   summaryLabel: { ...typography.label, color: colors.border, marginTop: 2, textAlign: "center" },
+  count: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: colors.terracotta, alignItems: "center", justifyContent: "center", marginRight: spacing.xs },
+  countText: { ...typography.label, color: colors.white, fontWeight: "700" },
   menu: { borderRadius: radius.lg, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.sm },
   row: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   rowIcon: { width: 36, height: 36, borderRadius: radius.sm, backgroundColor: colors.creamSecondary, alignItems: "center", justifyContent: "center" },
