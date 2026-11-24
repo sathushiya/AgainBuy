@@ -22,6 +22,7 @@ builder.Services.AddScoped<Notifier>();
 // Signs the short-lived links to private order files.
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton<OrderFileLinks>();
+builder.Services.AddHttpClient<DeliveryReceiptPdf>();
 
 // Listing photos go to Cloudinary. Without credentials the API still runs;
 // only the upload endpoint answers 503.
