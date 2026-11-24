@@ -72,6 +72,70 @@ export const CATEGORY_FIELDS: Readonly<Record<string, CategoryFields>> = {
       { key: "batteryCondition", label: "Battery condition", type: "select", required: true, options: ["Excellent", "Good", "Fair", "Needs replacement"] },
     ],
   },
+  Furniture: {
+    subtypeKey: "furnitureType",
+    fields: [
+      { key: "furnitureType", label: "Furniture type", type: "select", required: true, options: ["Sofa", "Bed", "Table", "Chair", "Wardrobe", "Desk", "Shelf / Cabinet", "Other"] },
+      brand,
+      { key: "material", label: "Material", type: "select", required: true, options: ["Wood", "Metal", "Fabric", "Leather", "Rattan", "Plastic", "Glass", "Other"] },
+      { key: "length", label: "Length", type: "number", required: true, unit: "cm", min: 1, max: 1000, placeholder: "cm" },
+      { key: "width", label: "Width", type: "number", required: true, unit: "cm", min: 1, max: 1000, placeholder: "cm" },
+      { key: "height", label: "Height", type: "number", required: true, unit: "cm", min: 1, max: 1000, placeholder: "cm" },
+      { key: "colour", label: "Colour", type: "text", required: true, minLength: 2, placeholder: "e.g. Natural teak" },
+    ],
+    subtypes: {
+      Sofa: [{ key: "seats", label: "Seats", type: "number", required: true, min: 1, max: 12, placeholder: "e.g. 3" }],
+      Bed: [{ key: "bedSize", label: "Bed size", type: "select", required: true, options: ["Single", "Double", "Queen", "King"] }],
+      Table: [{ key: "tableSeats", label: "Seating capacity", type: "number", min: 1, max: 20, placeholder: "e.g. 6" }],
+      Wardrobe: [{ key: "doors", label: "Doors", type: "number", min: 1, max: 10, placeholder: "e.g. 3" }],
+    },
+  },
+  Electronics: {
+    subtypeKey: "electronicsType",
+    fields: [
+      { key: "electronicsType", label: "Electronics type", type: "select", required: true, options: ["Monitor", "Television", "Camera", "Headphones", "Speaker", "Tablet", "Smartwatch", "Gaming console", "Other"] },
+      brand,
+      model,
+      { key: "specifications", label: "Other technical specifications", type: "text", multiline: true, placeholder: "Anything else a buyer should know, e.g. sensor size, ports" },
+      { key: "powerConnectivity", label: "Power / connectivity", type: "text", placeholder: "e.g. Bluetooth 5.0, USB-C charging" },
+    ],
+    subtypes: {
+      Monitor: [
+        { key: "screenSize", label: "Screen size", type: "number", required: true, unit: "inches", min: 10, max: 100, placeholder: "e.g. 27" },
+        { key: "resolution", label: "Resolution", type: "select", required: true, options: ["HD (1366×768)", "Full HD (1920×1080)", "QHD (2560×1440)", "4K (3840×2160)"] },
+        { key: "refreshRate", label: "Refresh rate", type: "select", required: true, options: ["60 Hz", "75 Hz", "100 Hz", "144 Hz", "165 Hz", "240 Hz"] },
+      ],
+      Television: [
+        { key: "screenSize", label: "Screen size", type: "number", required: true, unit: "inches", min: 10, max: 120, placeholder: "e.g. 55" },
+        { key: "resolution", label: "Resolution", type: "select", required: true, options: ["HD (1366×768)", "Full HD (1920×1080)", "4K (3840×2160)", "8K"] },
+        { key: "smartTv", label: "Smart TV", type: "select", required: true, options: ["Yes", "No"] },
+      ],
+      Camera: [
+        { key: "cameraType", label: "Camera type", type: "select", required: true, options: ["DSLR", "Mirrorless", "Compact", "Action camera", "Film camera"] },
+        { key: "megapixels", label: "Megapixels", type: "number", unit: "MP", min: 1, max: 200, placeholder: "e.g. 24" },
+        { key: "lens", label: "Lens included", type: "text", placeholder: "e.g. 18-55mm kit lens" },
+      ],
+      Headphones: [
+        { key: "headphoneStyle", label: "Headphone style", type: "select", required: true, options: ["Over-ear", "On-ear", "In-ear"] },
+        { key: "connection", label: "Connection", type: "select", required: true, options: ["Wireless", "Wired", "Both"] },
+        { key: "noiseCancelling", label: "Noise cancelling", type: "select", options: ["Yes", "No"] },
+      ],
+      Speaker: [
+        { key: "connection", label: "Connection", type: "select", required: true, options: ["Wireless", "Wired", "Both"] },
+        { key: "powerOutput", label: "Power output", type: "number", unit: "W", min: 1, max: 5000, placeholder: "e.g. 20" },
+      ],
+      Tablet: [
+        { key: "storage", label: "Storage capacity", type: "select", required: true, options: ["32 GB", "64 GB", "128 GB", "256 GB", "512 GB", "1 TB"] },
+        { key: "screenSize", label: "Screen size", type: "number", unit: "inches", min: 6, max: 15, placeholder: "e.g. 10.9" },
+        { key: "cellular", label: "Cellular (SIM)", type: "select", options: ["Yes", "No"] },
+      ],
+      Smartwatch: [{ key: "compatibility", label: "Works with", type: "select", required: true, options: ["Android", "iPhone", "Both"] }],
+      "Gaming console": [
+        { key: "storage", label: "Storage capacity", type: "select", options: ["500 GB", "825 GB", "1 TB", "2 TB"] },
+        { key: "controllers", label: "Controllers included", type: "number", min: 0, max: 8, placeholder: "e.g. 2" },
+      ],
+    },
+  },
 };
 
 export function hasCategoryFields(category: string) {
