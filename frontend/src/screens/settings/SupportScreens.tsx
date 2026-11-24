@@ -27,13 +27,14 @@ export function BuyingSafelyScreen() {
     ] },
     { icon: "shield-checkmark-outline", title: "Meeting up", points: [
       "Meet somewhere busy and public, in daylight. Bring a friend if you can.",
-      "Inspect and test the item before paying: switch it on, check the screen, battery and buttons.",
+      "Inspect and test the item at pickup: switch it on, check the screen, battery and buttons. Ask for extra photos or a video call in chat before you pay.",
       "For phones and laptops, check the serial or IMEI number matches the box or receipt.",
     ] },
     { icon: "information-circle-outline", title: "Paying", points: [
-      "Never send a deposit or pay in advance. Pay only after you have inspected the item.",
-      "AgainBuy never handles payments and will never ask you for card or bank details.",
-      "Use Buy now to reserve the item, then mark the purchase completed after the handover.",
+      "Tap Reserve to hold the item. It leaves browsing while you and the seller agree the price in chat, then you both confirm the deal.",
+      "Pay by bank transfer only to the account shown on the order after the deal is agreed, then upload your receipt. The seller confirms the payment; it is never confirmed automatically.",
+      "AgainBuy never moves money and will never ask for your card details or password.",
+      "For pickup, inspect the item before you confirm it was handed over. For delivery, track it with the courier and confirm only when it arrives.",
     ] },
     { icon: "alert-circle-outline", title: "If something feels wrong", points: [
       "Walk away. A genuine seller will understand.",
@@ -59,9 +60,10 @@ export function SellingGuidelinesScreen() {
       "Listings that break these rules are removed, and repeated breaches can close your account.",
     ] },
     { icon: "shield-checkmark-outline", title: "Handing it over", points: [
-      "Meet in a public place and let the buyer inspect the item.",
-      "Don't hand the item over until you have been paid.",
-      "Mark the sale completed afterwards, and deactivate listings you sell elsewhere.",
+      "Add your bank transfer details in Settings & Help before agreeing a deal; buyers see them once you both agree.",
+      "Check the money has reached your account before you confirm the payment. Never ship or hand over before that.",
+      "For delivery, book PickMe or Domex yourself and enter the tracking number. For pickup, meet in a public place and mark the order ready for pickup.",
+      "The buyer confirms delivery, which completes the sale. Deactivate listings you sell elsewhere.",
     ] },
   ]}/>;
 }
