@@ -233,6 +233,12 @@ public class ProductsController(AppDbContext db, IOptions<CloudinaryOptions> clo
         product.Accessories = request.Accessories?.Trim() ?? "";
         product.ReasonForSelling = request.ReasonForSelling?.Trim() ?? "";
         product.Delivery = request.Delivery ?? DeliveryOption.MeetUp;
+        // Keep the app's order; drop blank values and repeated keys.
+        product.Specifications = (request.Specifications ?? [])
+            .Select(specification => new ProductSpecification(specification.Key.Trim(), specification.Label.Trim(), specification.Value.Trim()))
+            .Where(specification => specification.Key != "" && specification.Value != "")
+            .DistinctBy(specification => specification.Key)
+            .ToList();
         product.Location = request.Location.Trim();
         product.Images = request.Images?.ToList() ?? product.Images;
         product.Image = product.Images.FirstOrDefault() ?? product.Image;

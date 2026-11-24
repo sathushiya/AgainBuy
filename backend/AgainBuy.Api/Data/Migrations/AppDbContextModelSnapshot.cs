@@ -288,6 +288,10 @@ namespace AgainBuy.Api.Data.Migrations
                     b.Property<double>("SellerRating")
                         .HasColumnType("double precision");
 
+                    b.Property<string>("Specifications")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");

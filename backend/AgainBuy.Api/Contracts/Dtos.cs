@@ -37,7 +37,8 @@ public record UpdateProfileRequest(
 public record ProductDto(
     string Id, string Title, string Category, decimal Price, decimal? OriginalPrice, string Image, IReadOnlyList<string> Images,
     ProductCondition Condition, string Usage, int PurchaseYear, string Location, string Seller, string SellerAvatar, double SellerRating,
-    string Brand, string Model, string Description, string Defects, string Accessories, string ReasonForSelling, DeliveryOption Delivery, DateTime ListedAt, ListingStatus Status, bool IsOwn);
+    string Brand, string Model, string Description, string Defects, string Accessories, string ReasonForSelling, DeliveryOption Delivery,
+    IReadOnlyList<ProductSpecification> Specifications, DateTime ListedAt, ListingStatus Status, bool IsOwn);
 
 // Mirrors the Sell screen's zod schema in frontend/src/screens/sell/SellScreen.tsx.
 public record UpsertListingRequest(
@@ -56,8 +57,16 @@ public record UpsertListingRequest(
     [MaxLength(300, ErrorMessage = "Keep the reason under 300 characters.")] string? ReasonForSelling,
     // Optional for older clients; a missing value means meet-up only.
     DeliveryOption? Delivery,
+    // Category-specific details from the app's second Sell step.
+    [MaxLength(40, ErrorMessage = "Too many details; keep it to 40.")] IReadOnlyList<SpecificationInput>? Specifications,
     [Required, MinLength(2, ErrorMessage = "Add a pickup location."), MaxLength(120)] string Location,
     [MaxLength(8)] IReadOnlyList<string>? Images);
+
+public record SpecificationInput(
+    [Required, MaxLength(40)] string Key,
+    [Required, MaxLength(60)] string Label,
+    // Blank values are allowed here and dropped when saving.
+    [Required(AllowEmptyStrings = true), MaxLength(200, ErrorMessage = "Keep each detail under 200 characters.")] string Value);
 
 public record ReportListingRequest([Required, MinLength(3), MaxLength(200)] string Reason);
 
