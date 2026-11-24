@@ -294,8 +294,35 @@ export interface AppNotification {
   read: boolean;
 }
 
-/** One turn in a shopping-assistant chat (kept in the app; the API is stateless). */
-export interface AssistantTurn {
+/** A question ("user") or an AI answer. Answers carry listing cards and four follow-up questions. */
+export interface AssistantMessage {
+  id: number;
   role: "user" | "assistant";
   content: string;
+  products: Product[];
+  suggestions: string[];
+  createdAt: string;
+}
+
+/** A saved AI assistant conversation, as listed in History. */
+export interface AssistantConversationSummary {
+  id: string;
+  title: string;
+  /** Set when the chat was started from a product page. */
+  productId: string | null;
+  productTitle: string | null;
+  lastMessage: string;
+  updatedAt: string;
+}
+
+export interface AssistantConversation {
+  conversation: AssistantConversationSummary;
+  messages: AssistantMessage[];
+}
+
+/** What one question adds: the saved question and its answer. */
+export interface AssistantExchange {
+  conversation: AssistantConversationSummary;
+  question: AssistantMessage;
+  answer: AssistantMessage;
 }

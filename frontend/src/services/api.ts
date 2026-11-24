@@ -2,7 +2,7 @@ import { API_URL } from "../config/apiUrl";
 import type {
   AccountSettings, AdminStats, AppUser, AuthResponse, Category, Conversation, ConversationDetail, Facility, ListingInput, Message,
   ModerationCase, PagedResult, PlatformUser, Product, SupportTicket, SupportTicketType, Transaction, UserRole, AccountStatus,
-  AppNotification, AssistantTurn, CourierService, OrderDetail, OrderSummary,
+  AppNotification, AssistantConversation, AssistantConversationSummary, AssistantExchange, CourierService, OrderDetail, OrderSummary,
 } from "../types";
 
 /** A local file to upload: a URI on native, a Blob on web. */
@@ -162,8 +162,14 @@ export const api = {
   markNotificationRead: (id: number) => request<void>("POST", `/api/notifications/${id}/read`),
   markAllNotificationsRead: () => request<void>("POST", "/api/notifications/read-all"),
 
-  /** Asks the shopping assistant; pass the whole chat so far, ending with the new question. */
-  askAssistant: (messages: AssistantTurn[], productId?: string) => request<{ reply: string; products: Product[] }>("POST", "/api/assistant/chat", { body: { messages, productId } }),
+  // AI assistant: conversations are saved per user on the server.
+  assistantConversations: () => request<AssistantConversationSummary[]>("GET", "/api/assistant/conversations"),
+  assistantConversation: (id: string) => request<AssistantConversation>("GET", `/api/assistant/conversations/${encodeURIComponent(id)}`),
+  /** Starts a conversation with its first question (productId when asked from a product page). */
+  startAssistantConversation: (message: string, productId?: string) => request<AssistantExchange>("POST", "/api/assistant/conversations", { body: { message, productId } }),
+  /** Asks the next question; the server answers using the saved conversation. */
+  askAssistant: (conversationId: string, message: string) => request<AssistantExchange>("POST", `/api/assistant/conversations/${encodeURIComponent(conversationId)}/messages`, { body: { message } }),
+  deleteAssistantConversation: (id: string) => request<void>("DELETE", `/api/assistant/conversations/${encodeURIComponent(id)}`),
 
   // Administration
   adminStats: () => request<AdminStats>("GET", "/api/admin/stats"),
