@@ -6,6 +6,7 @@ import { ConversationCard, MessageBubble, ProductImage } from "../../components/
 import { useApp } from "../../context/AppContext";
 import { useApiData } from "../../hooks/useApiData";
 import { api, errorMessage } from "../../services/api";
+import { pickPhotos, uploadPhoto } from "../../services/photos";
 import { colors, radius, spacing, typography } from "../../theme";
 import { ConversationDetail } from "../../types";
 import { messageTime } from "../../utils/format";
@@ -46,20 +47,42 @@ export function ConversationScreen({ route }: { route: any }) {
   const productKey = productId ?? detail?.conversation.productId;
   const { data: product } = useApiData(async () => productKey ? api.product(productKey) : null, [productKey]);
 
+  // Sends text, a photo, or both, starting the conversation if needed.
+  const deliver = async (body: string, imageUrl?: string) => {
+    if (detail) {
+      const message = await api.sendMessage(detail.conversation.id, body, imageUrl);
+      setData({ ...detail, messages: [...detail.messages, message] });
+    } else if (productId) {
+      const started = await api.startConversation(productId, body, imageUrl);
+      setData(started);
+      setConversationId(started.conversation.id);
+    }
+  };
+
   const send = async () => {
     const body = draft.trim();
     if (!body || sending) return;
     setSending(true);
     setSendError(null);
     try {
-      if (detail) {
-        const message = await api.sendMessage(detail.conversation.id, body);
-        setData({ ...detail, messages: [...detail.messages, message] });
-      } else if (productId) {
-        const started = await api.startConversation(productId, body);
-        setData(started);
-        setConversationId(started.conversation.id);
-      }
+      await deliver(body);
+      setDraft("");
+    } catch (caught) {
+      setSendError(errorMessage(caught));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Picks one photo, uploads it, and sends it straight away with any typed text as its caption.
+  const sendPhoto = async () => {
+    if (sending) return;
+    setSendError(null);
+    try {
+      const [asset] = await pickPhotos(1);
+      if (!asset) return;
+      setSending(true);
+      await deliver(draft.trim(), await uploadPhoto(asset));
       setDraft("");
     } catch (caught) {
       setSendError(errorMessage(caught));
@@ -72,7 +95,7 @@ export function ConversationScreen({ route }: { route: any }) {
   const image = product?.image ?? detail?.conversation.productImage ?? "";
   if (loading && detail === undefined) return <ScreenContainer><LoadingIndicator/></ScreenContainer>;
 
-  return <ScreenContainer scroll={false} contentStyle={styles.conversationScreen}><View style={styles.productBar}><ProductImage uri={image} style={styles.productImage}/><View style={styles.flex}><Text numberOfLines={1} style={styles.productTitle}>{title}</Text>{product && <Text style={styles.productPrice}>LKR {product.price.toLocaleString()}</Text>}</View><AppIcon name="chevron-forward" size={18} color={colors.textSecondary}/></View><ScrollView style={styles.bubbles}><Text style={styles.safety}>Keep communication in AgainBuy and inspect before paying.</Text>{error && <ErrorMessage message={error}/>}{!detail && !error && <Text style={styles.empty}>Say hello to {product?.seller ?? "the seller"} and ask about the item.</Text>}{detail?.messages.map((message) => <MessageBubble key={message.id} text={message.body} mine={message.isMine} time={messageTime(message.sentAt)}/>)}</ScrollView>{sendError && <ErrorMessage message={sendError}/>}<View style={styles.composer}><TextInput value={draft} onChangeText={setDraft} onSubmitEditing={send} placeholder="Write a message…" placeholderTextColor={colors.textSecondary} style={styles.input}/><Pressable accessibilityRole="button" accessibilityLabel="Send message" disabled={sending} onPress={send} style={[styles.send, sending && styles.sending]}><AppIcon name="send" size={19} color={colors.white}/></Pressable></View></ScreenContainer>;
+  return <ScreenContainer scroll={false} contentStyle={styles.conversationScreen}><View style={styles.productBar}><ProductImage uri={image} style={styles.productImage}/><View style={styles.flex}><Text numberOfLines={1} style={styles.productTitle}>{title}</Text>{product && <Text style={styles.productPrice}>LKR {product.price.toLocaleString()}</Text>}</View><AppIcon name="chevron-forward" size={18} color={colors.textSecondary}/></View><ScrollView style={styles.bubbles}><Text style={styles.safety}>Keep communication in AgainBuy and inspect before paying.</Text>{error && <ErrorMessage message={error}/>}{!detail && !error && <Text style={styles.empty}>Say hello to {product?.seller ?? "the seller"} and ask about the item.</Text>}{detail?.messages.map((message) => <MessageBubble key={message.id} text={message.body} image={message.imageUrl} mine={message.isMine} time={messageTime(message.sentAt)}/>)}</ScrollView>{sendError && <ErrorMessage message={sendError}/>}<View style={styles.composer}><TextInput value={draft} onChangeText={setDraft} onSubmitEditing={send} placeholder="Write a message…" placeholderTextColor={colors.textSecondary} style={styles.input}/><Pressable accessibilityRole="button" accessibilityLabel="Send a photo" disabled={sending} onPress={sendPhoto} style={[styles.photoButton, sending && styles.sending]}><AppIcon name="image-outline" size={21} color={colors.terracotta}/></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Send message" disabled={sending} onPress={send} style={[styles.send, sending && styles.sending]}><AppIcon name="send" size={19} color={colors.white}/></Pressable></View></ScreenContainer>;
 }
 
 const styles = StyleSheet.create({
@@ -93,5 +116,6 @@ const styles = StyleSheet.create({
   input: { flex: 1, minHeight: 48, borderRadius: radius.full, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, color: colors.charcoal },
   send: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.terracotta, alignItems: "center", justifyContent: "center" },
   sending: { opacity: 0.6 },
+  photoButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
   empty: { ...typography.body, color: colors.textSecondary, textAlign: "center" },
 });
