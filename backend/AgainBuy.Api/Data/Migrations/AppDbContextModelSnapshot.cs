@@ -229,6 +229,10 @@ namespace AgainBuy.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Delivery")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
@@ -262,6 +266,10 @@ namespace AgainBuy.Api.Data.Migrations
 
                     b.Property<int>("PurchaseYear")
                         .HasColumnType("integer");
+
+                    b.Property<string>("ReasonForSelling")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<bool>("RemovedByModeration")
                         .HasColumnType("boolean");
