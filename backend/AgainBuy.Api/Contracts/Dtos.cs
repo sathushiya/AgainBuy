@@ -65,7 +65,8 @@ public record UpsertListingRequest(
 public record SpecificationInput(
     [Required, MaxLength(40)] string Key,
     [Required, MaxLength(60)] string Label,
-    [Required, MaxLength(200, ErrorMessage = "Keep each detail under 200 characters.")] string Value);
+    // Blank values are allowed here and dropped when saving.
+    [Required(AllowEmptyStrings = true), MaxLength(200, ErrorMessage = "Keep each detail under 200 characters.")] string Value);
 
 public record ReportListingRequest([Required, MinLength(3), MaxLength(200)] string Reason);
 
