@@ -293,3 +293,9 @@ export interface AppNotification {
   createdAt: string;
   read: boolean;
 }
+
+/** One turn in a shopping-assistant chat (kept in the app; the API is stateless). */
+export interface AssistantTurn {
+  role: "user" | "assistant";
+  content: string;
+}

@@ -51,6 +51,7 @@ import {
   Wrench,
   X,
   type LucideIcon,
+  Sparkles,
 } from "lucide-react-native";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -101,6 +102,7 @@ const iconMap: Record<string, LucideIcon> = {
   send: Send,
   "shield-checkmark-outline": ShieldCheck,
   "shirt-outline": Shirt,
+  "sparkles-outline": Sparkles,
   add: Plus,
   "add-circle-outline": CirclePlus,
   "cube-outline": Package,
