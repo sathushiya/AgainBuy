@@ -10,7 +10,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test:roles": "tsx scripts/testRoles.ts"
+    "test:roles": "tsx scripts/testRoles.ts",
+    "test:fields": "tsx scripts/testListingFields.ts"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
