@@ -22,6 +22,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<OrderEvent> OrderEvents => Set<OrderEvent>();
     public DbSet<OrderFile> OrderFiles => Set<OrderFile>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<AssistantConversation> AssistantConversations => Set<AssistantConversation>();
+    public DbSet<AssistantMessage> AssistantMessages => Set<AssistantMessage>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder builder)
     {
@@ -116,6 +118,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasOne<User>().WithMany().HasForeignKey(notification => notification.UserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<Order>().WithMany().HasForeignKey(notification => notification.OrderId).OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(notification => new { notification.UserId, notification.ReadAt });
+        });
+
+        model.Entity<AssistantConversation>(entity =>
+        {
+            entity.Property(conversation => conversation.Title).HasMaxLength(80);
+            // Deleting an account removes its assistant history.
+            entity.HasOne<User>().WithMany().HasForeignKey(conversation => conversation.UserId).OnDelete(DeleteBehavior.Cascade);
+            // A listing can be deleted later; the chat stays, without the listing context.
+            entity.HasOne<Product>().WithMany().HasForeignKey(conversation => conversation.ProductId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(conversation => new { conversation.UserId, conversation.UpdatedAt });
+            entity.HasMany(conversation => conversation.Messages).WithOne().HasForeignKey(message => message.ConversationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        model.Entity<AssistantMessage>(entity =>
+        {
+            entity.Property(message => message.Role).HasMaxLength(16);
+            entity.Property(message => message.Content).HasMaxLength(8000);
+            entity.HasIndex(message => new { message.ConversationId, message.Id });
         });
 
         model.Entity<User>().Property(user => user.BankDetails).HasMaxLength(500);

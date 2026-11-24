@@ -52,6 +52,9 @@ import {
   X,
   type LucideIcon,
   Sparkles,
+  History,
+  SquarePen,
+  Trash2,
 } from "lucide-react-native";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -103,6 +106,9 @@ const iconMap: Record<string, LucideIcon> = {
   "shield-checkmark-outline": ShieldCheck,
   "shirt-outline": Shirt,
   "sparkles-outline": Sparkles,
+  "time-outline": History,
+  "create-outline": SquarePen,
+  "trash-outline": Trash2,
   add: Plus,
   "add-circle-outline": CirclePlus,
   "cube-outline": Package,
