@@ -137,6 +137,9 @@ public class ConversationsController(AppDbContext db, TimeProvider time, IOption
                 Last = conversation.Messages.OrderByDescending(message => message.SentAt).Select(message => new { message.Body, message.ImageUrl, message.SentAt }).FirstOrDefault(),
                 Unread = conversation.Messages.Count(message => message.SenderId != userId && message.ReadAt == null),
                 conversation.CreatedAt,
+                OrderId = db.Orders
+                    .Where(order => order.ProductId == conversation.ProductId && order.BuyerId == conversation.BuyerId && order.Status != OrderStatus.Cancelled)
+                    .Select(order => order.Id).FirstOrDefault(),
             })
             .Select(row => new ConversationDto(
                 row.Id, row.ProductId, row.Title, row.Image,
@@ -145,7 +148,7 @@ public class ConversationsController(AppDbContext db, TimeProvider time, IOption
                 // Photo-only messages show as "Photo" in the inbox preview.
                 row.Last == null ? "" : row.Last.Body != "" ? row.Last.Body : row.Last.ImageUrl != null ? "Photo" : "",
                 row.Last == null ? row.CreatedAt : row.Last.SentAt,
-                row.Unread));
+                row.Unread, row.OrderId));
 
     private async Task<ConversationDetailDto> Detail(string id, string userId, CancellationToken cancellationToken)
     {

@@ -39,6 +39,22 @@ public class OrderReservationTests
     }
 
     [Fact]
+    public async Task The_chat_links_to_its_reservation_until_it_is_cancelled()
+    {
+        await using var scenario = await OrderScenario.Start();
+        var order = await scenario.Reserve();
+        var path = $"/api/conversations/{order.ConversationId}";
+
+        Assert.Equal(order.Summary.Id, (await (await scenario.Buyer.GetAsync(path)).Read<ConversationDetailDto>()).Conversation.OrderId);
+        Assert.Equal(order.Summary.Id, (await (await scenario.Seller.GetAsync(path)).Read<ConversationDetailDto>()).Conversation.OrderId);
+        var inbox = await (await scenario.Seller.GetAsync("/api/conversations")).Read<List<ConversationDto>>();
+        Assert.Equal(order.Summary.Id, inbox.Single(conversation => conversation.Id == order.ConversationId).OrderId);
+
+        (await scenario.Act(scenario.Buyer, order.Summary.Id, "cancel")).EnsureSuccessStatusCode();
+        Assert.Null((await (await scenario.Buyer.GetAsync(path)).Read<ConversationDetailDto>()).Conversation.OrderId);
+    }
+
+    [Fact]
     public async Task Reservations_are_refused_when_they_would_conflict()
     {
         await using var scenario = await OrderScenario.Start();

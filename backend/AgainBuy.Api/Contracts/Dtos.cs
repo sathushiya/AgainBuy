@@ -80,7 +80,8 @@ public record ReportListingRequest([Required, MinLength(3), MaxLength(200)] stri
 
 public record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, int Total);
 
-public record ConversationDto(string Id, string ProductId, string ProductTitle, string ProductImage, string Person, string Avatar, string LastMessage, DateTime Time, int Unread);
+// OrderId: this buyer's reservation of the product (not cancelled), so the chat can open it.
+public record ConversationDto(string Id, string ProductId, string ProductTitle, string ProductImage, string Person, string Avatar, string LastMessage, DateTime Time, int Unread, string? OrderId);
 
 public record MessageDto(int Id, string SenderName, string Body, string? ImageUrl, DateTime SentAt, bool IsMine);
 
