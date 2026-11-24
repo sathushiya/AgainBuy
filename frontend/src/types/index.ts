@@ -2,6 +2,8 @@
 // Timestamps are ISO-8601 UTC strings; format them with src/utils/format.ts.
 
 export type ProductCondition = "Like new" | "Excellent" | "Good" | "Fair";
+/** How the seller hands the item over; matches the chips on the Sell screen. */
+export type DeliveryOption = "Delivery" | "Meet-up" | "Both";
 export type ListingStatus = "Active" | "Reserved" | "Sold" | "Inactive";
 export type UserRole = "customer" | "admin";
 export type AccountStatus = "Active" | "Review" | "Inactive";
@@ -43,6 +45,9 @@ export interface Product {
   description: string;
   defects: string;
   accessories: string;
+  /** Empty when the seller didn't give one. */
+  reasonForSelling: string;
+  delivery: DeliveryOption;
   listedAt: string;
   status: ListingStatus;
   isOwn: boolean;
@@ -61,6 +66,8 @@ export interface ListingInput {
   description: string;
   defects: string;
   accessories?: string;
+  reasonForSelling?: string;
+  delivery?: DeliveryOption;
   location: string;
   images?: string[];
 }

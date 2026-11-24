@@ -73,7 +73,7 @@ Permissions are centralized in `src/config/permissions.ts`. The API enforces the
 - Search and filtering by category and condition
 - Product details with prices, usage, year, condition, defects, accessories, seller, and location
 - Wishlist saved to your account
-- Sell-an-item form with up to 8 photos (resized, then uploaded to Cloudinary through the API), Zod validation, preview, and publishing
+- Sell-an-item form with up to 8 photos (resized, then uploaded to Cloudinary through the API), reason for selling, delivery availability (Delivery / Meet-up / Both), Zod validation, preview, and publishing
 - My Listings with deactivation and reactivation
 - Messaging with sellers, unread counts, and new conversations from product pages
 - Reserving items, plus purchase and sales history with complete/cancel
