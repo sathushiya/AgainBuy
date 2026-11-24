@@ -136,7 +136,37 @@ export const CATEGORY_FIELDS: Readonly<Record<string, CategoryFields>> = {
       ],
     },
   },
+  Books: {
+    fields: [
+      { key: "bookTitle", label: "Book title", type: "text", required: true, minLength: 2 },
+      { key: "author", label: "Author", type: "text", required: true, minLength: 2 },
+      { key: "bookCategory", label: "Book category", type: "select", required: true, options: ["Fiction", "Non-fiction", "Textbook / Academic", "Children's", "Comics", "Religious", "Other"] },
+      { key: "language", label: "Language", type: "select", required: true, options: ["English", "Sinhala", "Tamil", "Other"] },
+      { key: "edition", label: "Edition", type: "text", placeholder: "e.g. 3rd edition, 2019" },
+      { key: "isbn", label: "ISBN", type: "text", placeholder: "10 or 13 digits, if printed on the book", validate: validateIsbn },
+    ],
+  },
+  Clothing: {
+    subtypeKey: "clothingType",
+    fields: [
+      { key: "clothingType", label: "Clothing type", type: "select", required: true, options: ["Shirt / Top", "T-shirt", "Trousers / Jeans", "Dress", "Skirt", "Jacket", "Saree", "Shoes", "Other"] },
+      brand,
+      { key: "size", label: "Size", type: "select", required: true, options: ["XS", "S", "M", "L", "XL", "XXL", "Free size"], hiddenFor: ["Shoes"] },
+      { key: "colour", label: "Colour", type: "text", required: true, minLength: 2 },
+      { key: "gender", label: "Gender / style", type: "select", required: true, options: ["Men", "Women", "Unisex", "Boys", "Girls"] },
+      { key: "material", label: "Material", type: "text", required: true, minLength: 2, placeholder: "e.g. Cotton, denim, linen" },
+    ],
+    subtypes: {
+      Shoes: [{ key: "shoeSize", label: "Shoe size (UK)", type: "number", required: true, min: 1, max: 15, placeholder: "e.g. 9" }],
+    },
+  },
 };
+
+/** Accepts ISBN-10 (last character may be X) or ISBN-13; spaces and hyphens are ignored. */
+function validateIsbn(value: string) {
+  const isbn = value.replace(/[\s-]/g, "").toUpperCase();
+  return /^\d{9}[\dX]$/.test(isbn) || /^\d{13}$/.test(isbn) ? undefined : "Enter a 10 or 13 digit ISBN, or leave it blank.";
+}
 
 export function hasCategoryFields(category: string) {
   return category in CATEGORY_FIELDS;
