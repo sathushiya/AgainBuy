@@ -27,7 +27,7 @@ export function MessagesScreen({ navigation }: { navigation: any }) {
  * page. In the second case the existing thread for that product is reused if
  * there is one; otherwise the first message starts it.
  */
-export function ConversationScreen({ route }: { route: any }) {
+export function ConversationScreen({ navigation, route }: { navigation: any; route: any }) {
   const productId: string | undefined = route.params?.productId;
   const [conversationId, setConversationId] = React.useState<string | undefined>(route.params?.id);
   const [draft, setDraft] = React.useState("");
@@ -91,11 +91,18 @@ export function ConversationScreen({ route }: { route: any }) {
     }
   };
 
+  // The card opens the reservation when there is one (so both sides can agree and track it), else the listing.
+  const orderId = detail?.conversation.orderId ?? null;
+  const openProductCard = () => {
+    if (orderId) navigation.navigate("OrderDetail", { id: orderId });
+    else if (productKey) navigation.navigate("ProductDetail", { id: productKey });
+  };
+
   const title = product?.title ?? detail?.conversation.productTitle ?? "";
   const image = product?.image ?? detail?.conversation.productImage ?? "";
   if (loading && detail === undefined) return <ScreenContainer><LoadingIndicator/></ScreenContainer>;
 
-  return <ScreenContainer scroll={false} contentStyle={styles.conversationScreen}><View style={styles.productBar}><ProductImage uri={image} style={styles.productImage}/><View style={styles.flex}><Text numberOfLines={1} style={styles.productTitle}>{title}</Text>{product && <Text style={styles.productPrice}>LKR {product.price.toLocaleString()}</Text>}</View><AppIcon name="chevron-forward" size={18} color={colors.textSecondary}/></View><ScrollView style={styles.bubbles}><Text style={styles.safety}>Keep communication in AgainBuy and inspect before paying.</Text>{error && <ErrorMessage message={error}/>}{!detail && !error && <Text style={styles.empty}>Say hello to {product?.seller ?? "the seller"} and ask about the item.</Text>}{detail?.messages.map((message) => <MessageBubble key={message.id} text={message.body} image={message.imageUrl} mine={message.isMine} time={messageTime(message.sentAt)}/>)}</ScrollView>{sendError && <ErrorMessage message={sendError}/>}<View style={styles.composer}><TextInput value={draft} onChangeText={setDraft} onSubmitEditing={send} placeholder="Write a message…" placeholderTextColor={colors.textSecondary} style={styles.input}/><Pressable accessibilityRole="button" accessibilityLabel="Send a photo" disabled={sending} onPress={sendPhoto} style={[styles.photoButton, sending && styles.sending]}><AppIcon name="image-outline" size={21} color={colors.terracotta}/></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Send message" disabled={sending} onPress={send} style={[styles.send, sending && styles.sending]}><AppIcon name="send" size={19} color={colors.white}/></Pressable></View></ScreenContainer>;
+  return <ScreenContainer scroll={false} contentStyle={styles.conversationScreen}><Pressable accessibilityRole="button" accessibilityLabel={orderId ? `Open the order for ${title}` : `Open ${title}`} disabled={!orderId && !productKey} onPress={openProductCard} style={({ pressed }) => [styles.productBar, pressed && styles.productBarPressed]}><ProductImage uri={image} style={styles.productImage}/><View style={styles.flex}><Text numberOfLines={1} style={styles.productTitle}>{title}</Text>{product && <Text style={styles.productPrice}>LKR {product.price.toLocaleString()}</Text>}{orderId && <Text style={styles.productOrder}>View order details</Text>}</View><AppIcon name="chevron-forward" size={18} color={colors.textSecondary}/></Pressable><ScrollView style={styles.bubbles}><Text style={styles.safety}>Keep communication in AgainBuy and inspect before paying.</Text>{error && <ErrorMessage message={error}/>}{!detail && !error && <Text style={styles.empty}>Say hello to {product?.seller ?? "the seller"} and ask about the item.</Text>}{detail?.messages.map((message) => <MessageBubble key={message.id} text={message.body} image={message.imageUrl} mine={message.isMine} time={messageTime(message.sentAt)}/>)}</ScrollView>{sendError && <ErrorMessage message={sendError}/>}<View style={styles.composer}><TextInput value={draft} onChangeText={setDraft} onSubmitEditing={send} placeholder="Write a message…" placeholderTextColor={colors.textSecondary} style={styles.input}/><Pressable accessibilityRole="button" accessibilityLabel="Send a photo" disabled={sending} onPress={sendPhoto} style={[styles.photoButton, sending && styles.sending]}><AppIcon name="image-outline" size={21} color={colors.terracotta}/></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Send message" disabled={sending} onPress={send} style={[styles.send, sending && styles.sending]}><AppIcon name="send" size={19} color={colors.white}/></Pressable></View></ScreenContainer>;
 }
 
 const styles = StyleSheet.create({
@@ -106,6 +113,8 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: spacing.md, paddingBottom: 100 },
   conversationScreen: { paddingHorizontal: spacing.md },
   productBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.white, borderRadius: radius.md, padding: spacing.xs, borderWidth: 1, borderColor: colors.border },
+  productBarPressed: { opacity: 0.82 },
+  productOrder: { ...typography.label, color: colors.terracotta, fontWeight: "700", marginTop: 2 },
   productImage: { width: 52, height: 52, borderRadius: radius.sm },
   flex: { flex: 1 },
   productTitle: { ...typography.medium, color: colors.charcoal },
