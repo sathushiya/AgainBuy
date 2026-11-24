@@ -130,6 +130,8 @@ export interface Conversation {
   lastMessage: string;
   time: string;
   unread: number;
+  /** This buyer's reservation of the product (not cancelled); the chat's product card opens it. */
+  orderId: string | null;
 }
 
 export interface Message {
