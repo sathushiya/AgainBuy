@@ -29,6 +29,7 @@ builder.Services.AddHttpClient<DeliveryReceiptPdf>();
 // the assistant endpoint answers 503.
 builder.Services.Configure<GroqOptions>(builder.Configuration.GetSection(GroqOptions.Section));
 builder.Services.AddHttpClient<IChatModel, GroqChatModel>(client => client.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddScoped<ListingSearch>();
 
 // Listing photos go to Cloudinary. Without credentials the API still runs;
 // only the upload endpoint answers 503.
