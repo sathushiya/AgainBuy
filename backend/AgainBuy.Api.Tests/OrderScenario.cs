@@ -8,6 +8,7 @@ namespace AgainBuy.Api.Tests;
 public sealed class OrderScenario : IAsyncDisposable
 {
     public const string ProductId = "mine_1";
+    public const string BankDetails = "Maya Perera · Commercial Bank · 8012345678 · Colombo 05";
 
     public required ApiFactory Factory { get; init; }
     public required HttpClient Seller { get; init; }
@@ -36,6 +37,9 @@ public sealed class OrderScenario : IAsyncDisposable
 
     public Task<HttpResponseMessage> Act(HttpClient client, string orderId, string action, object? body = null) =>
         body is null ? client.PostAsync($"/api/orders/{orderId}/{action}", null) : client.PostAsJsonAsync($"/api/orders/{orderId}/{action}", body);
+
+    public Task SaveSellerBankDetails() =>
+        Seller.PutAsJsonAsync("/api/account/settings", new { notifyMessages = true, notifyOrders = true, notifyNews = false, savedLocations = Array.Empty<string>(), bankDetails = BankDetails });
 
     public ValueTask DisposeAsync() => Factory.DisposeAsync();
 }

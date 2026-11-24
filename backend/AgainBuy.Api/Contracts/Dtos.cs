@@ -151,3 +151,5 @@ public record OrderDetailDto(
     IReadOnlyList<string> Actions);
 
 public record ReserveRequest([Required] string ProductId);
+
+public record ProposePriceRequest([Range(1, 100_000_000, ErrorMessage = "Enter a valid price.")] decimal Price);

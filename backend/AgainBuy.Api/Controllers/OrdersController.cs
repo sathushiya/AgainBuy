@@ -99,7 +99,92 @@ public class OrdersController(AppDbContext db, Notifier notifier, TimeProvider t
         return await Detail(id, userId, cancellationToken);
     }
 
+    // ---- Stage 1–2: negotiate, agree, or drop the reservation -------------------
+
+    /// <summary>Either party proposes a new price. Both agreements reset, since they were for the old price.</summary>
+    [HttpPost("{id}/price")]
+    public async Task<ActionResult<OrderDetailDto>> ProposePrice(string id, ProposePriceRequest request, CancellationToken cancellationToken)
+    {
+        var order = await FindForParticipant(id, cancellationToken);
+        if (order is null) return NotFound();
+        if (Disallowed(order, OrderActions.ProposePrice) is { } refused) return refused;
+
+        var userId = User.UserId();
+        if (request.Price != order.AgreedPrice)
+        {
+            order.AgreedPrice = request.Price;
+            order.BuyerAgreedAt = null;
+            order.SellerAgreedAt = null;
+            Move(order, OrderStatus.Negotiating, userId, $"Price changed to {Lkr(request.Price)}");
+            notifier.Send(OtherParty(order, userId), NotificationType.PriceChanged, "New price proposed", $"{NameOf(order, userId)} proposed {Lkr(request.Price)} for {order.Product!.Title}.", order.Id);
+            if (await Save(cancellationToken) is { } conflict) return conflict;
+        }
+        return await Detail(id, userId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Records this party's agreement to the current price. Once both have agreed
+    /// the deal is final and the order waits for the buyer's bank transfer.
+    /// </summary>
+    [HttpPost("{id}/agree")]
+    public async Task<ActionResult<OrderDetailDto>> Agree(string id, CancellationToken cancellationToken)
+    {
+        var order = await FindForParticipant(id, cancellationToken);
+        if (order is null) return NotFound();
+        if (Disallowed(order, OrderActions.Agree) is { } refused) return refused;
+
+        var userId = User.UserId();
+        var isSeller = order.SellerId == userId;
+        if (isSeller && string.IsNullOrWhiteSpace(order.Seller!.BankDetails))
+            return Problem(statusCode: StatusCodes.Status409Conflict, title: "Add your bank transfer details in Settings & Help before agreeing, so the buyer knows where to pay.");
+
+        var now = time.GetUtcNow().UtcDateTime;
+        if (isSeller) order.SellerAgreedAt = now;
+        else order.BuyerAgreedAt = now;
+        Move(order, OrderStatus.Negotiating, userId, $"{NameOf(order, userId)} agreed to {Lkr(order.AgreedPrice)}");
+
+        if (order.BuyerAgreedAt is not null && order.SellerAgreedAt is not null)
+        {
+            Move(order, OrderStatus.DealAgreed, userId, $"Both agreed to {Lkr(order.AgreedPrice)}");
+            order.PaymentInstructions = order.Seller!.BankDetails;
+            Move(order, OrderStatus.PaymentPending, null, "Waiting for the buyer's bank transfer");
+            var title = order.Product!.Title;
+            notifier.Send(order.BuyerId, NotificationType.DealAgreed, "Deal agreed", $"You and {order.Seller.Name} agreed {Lkr(order.AgreedPrice)} for {title}. Transfer the money using the seller's bank details, then upload your receipt.", order.Id);
+            notifier.Send(order.SellerId, NotificationType.DealAgreed, "Deal agreed", $"You and {order.Buyer!.Name} agreed {Lkr(order.AgreedPrice)} for {title}. You'll be notified when they upload their payment receipt.", order.Id);
+        }
+        else
+        {
+            notifier.Send(OtherParty(order, userId), NotificationType.DealAgreed, "Waiting for you to agree", $"{NameOf(order, userId)} agreed to {Lkr(order.AgreedPrice)} for {order.Product!.Title}. Agree too to confirm the deal.", order.Id);
+        }
+
+        if (await Save(cancellationToken) is { } conflict) return conflict;
+        return await Detail(id, userId, cancellationToken);
+    }
+
+    /// <summary>The buyer drops the reservation (before paying); the item goes back on the marketplace.</summary>
+    [HttpPost("{id}/cancel")]
+    public async Task<ActionResult<OrderDetailDto>> Cancel(string id, CancellationToken cancellationToken)
+    {
+        var order = await FindForParticipant(id, cancellationToken);
+        if (order is null) return NotFound();
+        if (Disallowed(order, OrderActions.Cancel) is { } refused) return refused;
+
+        order.CancelledAt = time.GetUtcNow().UtcDateTime;
+        Move(order, OrderStatus.Cancelled, order.BuyerId, "Reservation removed by the buyer");
+        if (order.Product!.Status == ListingStatus.Reserved) order.Product.Status = ListingStatus.Active;
+        notifier.Send(order.SellerId, NotificationType.ReservationCancelled, "Reservation removed", $"{order.Buyer!.Name} removed their reservation for {order.Product.Title}. It's back on the marketplace.", order.Id);
+
+        if (await Save(cancellationToken) is { } conflict) return conflict;
+        return await Detail(id, User.UserId(), cancellationToken);
+    }
+
     // ---- Helpers ------------------------------------------------------------
+
+    private static string Lkr(decimal amount) => $"LKR {amount:N0}";
+
+    private static string OtherParty(Order order, string userId) => order.BuyerId == userId ? order.SellerId : order.BuyerId;
+
+    private static string NameOf(Order order, string userId) => (order.BuyerId == userId ? order.Buyer?.Name : order.Seller?.Name) ?? "The other party";
 
     private IQueryable<Order> Orders() =>
         db.Orders.Include(order => order.Product).Include(order => order.Buyer).Include(order => order.Seller).Include(order => order.History);
