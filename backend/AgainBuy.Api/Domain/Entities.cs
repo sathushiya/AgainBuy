@@ -57,6 +57,10 @@ public class Product
     public string Accessories { get; set; } = "";
     public string ReasonForSelling { get; set; } = "";
     public DeliveryOption Delivery { get; set; } = DeliveryOption.MeetUp;
+
+    // Category-specific details (e.g. Storage capacity, Battery health), in the
+    // order the app showed them. Stored as one JSON column.
+    public List<ProductSpecification> Specifications { get; set; } = [];
     public DateTime ListedAt { get; set; } = DateTime.UtcNow;
     public ListingStatus Status { get; set; } = ListingStatus.Active;
 
@@ -157,3 +161,5 @@ public class SupportTicket
     public SupportTicketStatus Status { get; set; } = SupportTicketStatus.Open;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
+
+public record ProductSpecification(string Key, string Label, string Value);

@@ -1,5 +1,7 @@
+using System.Text.Json;
 using AgainBuy.Api.Domain;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace AgainBuy.Api.Data;
 
@@ -45,6 +47,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasIndex(product => product.Status);
             entity.HasIndex(product => product.Category);
             entity.HasIndex(product => product.SellerId);
+            entity.Property(product => product.Specifications)
+                .HasColumnType("jsonb")
+                .HasConversion(
+                    specifications => JsonSerializer.Serialize(specifications, (JsonSerializerOptions?)null),
+                    json => JsonSerializer.Deserialize<List<ProductSpecification>>(json, (JsonSerializerOptions?)null) ?? new List<ProductSpecification>(),
+                    new ValueComparer<List<ProductSpecification>>(
+                        (left, right) => left!.SequenceEqual(right!),
+                        specifications => specifications.Aggregate(0, (hash, specification) => HashCode.Combine(hash, specification)),
+                        specifications => specifications.ToList()));
         });
 
         model.Entity<WishlistItem>(entity =>
