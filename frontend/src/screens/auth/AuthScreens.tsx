@@ -6,6 +6,7 @@ import { z } from "zod";
 import { AgainBuyLogo } from "../../components/AgainBuyLogo";
 import { AppIcon } from "../../components/AppIcon";
 import { AppTextInput, ErrorMessage, PrimaryButton, ScreenContainer, SecondaryButton } from "../../components/core";
+import { ExchangeAnimation } from "../../components/ExchangeAnimation";
 import { DemoAccountCard } from "../../components/roles";
 import { useApp } from "../../context/AppContext";
 import { demoUsers } from "../../data/demoUsers";
@@ -30,7 +31,7 @@ export function OnboardingScreen({ navigation, onComplete }: { navigation: any; 
   const [index, setIndex] = React.useState(0);
   const slide = slides[index]!;
   const finish = () => onComplete ? onComplete() : navigation.replace("Login");
-  return <ScreenContainer contentStyle={styles.onboarding}><View style={styles.onboardingTop}><AgainBuyLogo width={156}/><Pressable accessibilityRole="button" onPress={finish}><Text style={styles.skip}>Skip</Text></Pressable></View><View style={styles.illustration}><View style={styles.illustrationCircle}><AppIcon name={slide.icon} size={64} color={index === 2 ? colors.green : colors.terracotta}/></View><View style={[styles.smallOrb, styles.orbOne]}/><View style={[styles.smallOrb, styles.orbTwo]}/></View><Text style={styles.onboardingTitle}>{slide.title}</Text><Text style={styles.onboardingBody}>{slide.body}</Text><View style={styles.dots}>{slides.map((_, dot) => <View key={dot} style={[styles.dot, dot === index && styles.dotActive]}/>)}</View><View style={styles.onboardingActions}>{index > 0 && <SecondaryButton title="Back" onPress={() => setIndex((value) => value - 1)} style={styles.action}/>}<PrimaryButton title={index === slides.length - 1 ? "Get started" : "Continue"} onPress={() => index === slides.length - 1 ? finish() : setIndex((value) => value + 1)} style={styles.action}/></View></ScreenContainer>;
+  return <ScreenContainer contentStyle={styles.onboarding}><View style={styles.onboardingTop}><AgainBuyLogo width={156}/><Pressable accessibilityRole="button" onPress={finish}><Text style={styles.skip}>Skip</Text></Pressable></View><View style={styles.illustration}>{index === 0 ? <ExchangeAnimation/> : <><View style={styles.illustrationCircle}><AppIcon name={slide.icon} size={64} color={index === 2 ? colors.green : colors.terracotta}/></View><View style={[styles.smallOrb, styles.orbOne]}/><View style={[styles.smallOrb, styles.orbTwo]}/></>}</View><Text style={styles.onboardingTitle}>{slide.title}</Text><Text style={styles.onboardingBody}>{slide.body}</Text><View style={styles.dots}>{slides.map((_, dot) => <View key={dot} style={[styles.dot, dot === index && styles.dotActive]}/>)}</View><View style={styles.onboardingActions}>{index > 0 && <SecondaryButton title="Back" onPress={() => setIndex((value) => value - 1)} style={styles.action}/>}<PrimaryButton title={index === slides.length - 1 ? "Get started" : "Continue"} onPress={() => index === slides.length - 1 ? finish() : setIndex((value) => value + 1)} style={styles.action}/></View></ScreenContainer>;
 }
 
 const loginSchema = z.object({ email: z.string().email("Enter a valid email address."), password: z.string().min(8, "Use at least 8 characters.") });
