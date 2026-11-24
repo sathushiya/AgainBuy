@@ -160,6 +160,49 @@ export const CATEGORY_FIELDS: Readonly<Record<string, CategoryFields>> = {
       Shoes: [{ key: "shoeSize", label: "Shoe size (UK)", type: "number", required: true, min: 1, max: 15, placeholder: "e.g. 9" }],
     },
   },
+  Sports: {
+    subtypeKey: "equipmentType",
+    fields: [
+      { key: "equipmentType", label: "Sports equipment type", type: "select", required: true, options: ["Bicycle", "Fitness equipment", "Cricket", "Football", "Racket sports", "Camping / Outdoor", "Water sports", "Other"] },
+      brand,
+      model,
+      { key: "size", label: "Size", type: "text", placeholder: "e.g. Size 5 ball, 120 cm", hiddenFor: ["Bicycle"] },
+      { key: "material", label: "Material", type: "text", placeholder: "e.g. Carbon fibre, English willow" },
+      { key: "weightSpecs", label: "Weight / specifications", type: "text", placeholder: "e.g. 2 x 10 kg dumbbells" },
+    ],
+    subtypes: {
+      Bicycle: [
+        { key: "frameSize", label: "Frame size", type: "select", required: true, options: ["XS (13-14\")", "S (15-16\")", "M (17-18\")", "L (19-20\")", "XL (21\"+)", "Kids"] },
+        { key: "gears", label: "Gears", type: "number", required: true, min: 1, max: 30, placeholder: "e.g. 21" },
+        { key: "bicycleType", label: "Bicycle type", type: "select", required: true, options: ["Mountain", "Road", "Hybrid", "BMX", "Kids", "Electric"] },
+      ],
+    },
+  },
+  Appliances: {
+    subtypeKey: "applianceType",
+    fields: [
+      { key: "applianceType", label: "Appliance type", type: "select", required: true, options: ["Refrigerator", "Washing machine", "Air conditioner", "Microwave / Oven", "Rice cooker", "Blender / Mixer", "Fan", "Iron", "Other"] },
+      brand,
+      model,
+      { key: "capacity", label: "Capacity", type: "text", placeholder: "e.g. 1.8 L, 20 L", hiddenFor: ["Refrigerator", "Washing machine", "Air conditioner"] },
+      { key: "power", label: "Energy / power specifications", type: "text", placeholder: "e.g. Inverter, 5-star, 1200 W" },
+      { key: "workingCondition", label: "Working condition", type: "select", required: true, options: ["Fully working", "Minor issues", "Needs repair"] },
+    ],
+    subtypes: {
+      Refrigerator: [
+        { key: "fridgeCapacity", label: "Capacity", type: "number", required: true, unit: "L", min: 10, max: 1000, placeholder: "litres, e.g. 250" },
+        { key: "refrigeratorType", label: "Refrigerator type", type: "select", required: true, options: ["Single door", "Double door", "Side-by-side", "French door", "Mini fridge"] },
+      ],
+      "Washing machine": [
+        { key: "washerCapacity", label: "Capacity", type: "number", required: true, unit: "kg", min: 1, max: 30, placeholder: "kg, e.g. 7" },
+        { key: "washingMachineType", label: "Washing machine type", type: "select", required: true, options: ["Front load", "Top load", "Semi-automatic"] },
+      ],
+      "Air conditioner": [
+        { key: "coolingCapacity", label: "Cooling capacity", type: "select", required: true, options: ["9,000 BTU", "12,000 BTU", "18,000 BTU", "24,000 BTU"] },
+        { key: "inverter", label: "Inverter", type: "select", options: ["Yes", "No"] },
+      ],
+    },
+  },
 };
 
 /** Accepts ISBN-10 (last character may be X) or ISBN-13; spaces and hyphens are ignored. */
