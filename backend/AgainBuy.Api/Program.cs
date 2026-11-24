@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using AgainBuy.Api.Assistant;
 using AgainBuy.Api.Auth;
 using AgainBuy.Api.Data;
 using AgainBuy.Api.Domain;
@@ -23,6 +24,11 @@ builder.Services.AddScoped<Notifier>();
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton<OrderFileLinks>();
 builder.Services.AddHttpClient<DeliveryReceiptPdf>();
+
+// The shopping assistant uses Groq. Without Groq:ApiKey the API still runs; only
+// the assistant endpoint answers 503.
+builder.Services.Configure<GroqOptions>(builder.Configuration.GetSection(GroqOptions.Section));
+builder.Services.AddHttpClient<IChatModel, GroqChatModel>(client => client.Timeout = TimeSpan.FromSeconds(30));
 
 // Listing photos go to Cloudinary. Without credentials the API still runs;
 // only the upload endpoint answers 503.
@@ -88,6 +94,12 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy(RateLimitPolicies.Uploads, context => RateLimitPartition.GetFixedWindowLimiter(
         context.User.FindFirst(AppClaims.Subject)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = uploadsPerMinute, Window = TimeSpan.FromMinutes(1) }));
+
+    // Per signed-in user, to protect the Groq quota.
+    var assistantPerMinute = builder.Configuration.GetValue("RateLimiting:AssistantPerMinute", 12);
+    options.AddPolicy(RateLimitPolicies.Assistant, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.FindFirst(AppClaims.Subject)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = assistantPerMinute, Window = TimeSpan.FromMinutes(1) }));
 });
 
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
