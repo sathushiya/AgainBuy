@@ -14,7 +14,7 @@ Start with task-relevant files below. Only follow imports or inspect other files
 
 Frontend (`frontend/`):
 - `index.ts` / `App.tsx` - Expo entrypoint and root component (navigation, providers)
-- `src/screens/` - Screens grouped by feature; `src/screens/orders/` - order dashboards and order detail (negotiation, payment, delivery); `src/screens/notifications/` - in-app notifications; `src/navigation/` - customer and admin navigators
+- `src/screens/` - Screens grouped by feature; `src/screens/orders/` - order dashboards and order detail (negotiation, payment, delivery); `src/screens/notifications/` - in-app notifications; `src/screens/assistant/` - AgainBuy assistant chat (Groq, via the API); `src/navigation/` - customer and admin navigators
 - `src/components/` - Shared UI; `src/theme/index.ts` - brand colours and typography
 - `src/context/AppContext.tsx` - Session and wishlist state, unread message and notification counts
 - `src/services/api.ts` - Typed client for every API endpoint; `src/services/authService.ts` - sign-in; `src/config/apiUrl.ts` - API address
@@ -28,7 +28,7 @@ Frontend (`frontend/`):
 
 Backend (`backend/`): see `backend/README.md`.
 - `AgainBuy.Api/Program.cs` - Service wiring, JWT, authorization policies
-- `AgainBuy.Api/Controllers/` - HTTP endpoints; `Contracts/` - DTOs; `Data/` - EF Core context and seed data; `Images/` - Cloudinary photo storage
+- `AgainBuy.Api/Controllers/` - HTTP endpoints; `Contracts/` - DTOs; `Data/` - EF Core context and seed data; `Images/` - Cloudinary photo storage; `Assistant/` - Groq client and the assistant's app guide (update `AssistantPrompt.cs` when app features or rules change)
 - `AgainBuy.Api.Tests/` - Integration tests (`dotnet test` from `backend/`)
 
 Root: `.mise.toml` - Node.js and pnpm versions.
