@@ -2,17 +2,19 @@ using AgainBuy.Api.Auth;
 using AgainBuy.Api.Contracts;
 using AgainBuy.Api.Data;
 using AgainBuy.Api.Domain;
+using AgainBuy.Api.Images;
 using AgainBuy.Api.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AgainBuy.Api.Controllers;
 
 [ApiController]
 [Route("api/conversations")]
 [Authorize(Policy = Permissions.MarketplaceBrowse)]
-public class ConversationsController(AppDbContext db, TimeProvider time) : ControllerBase
+public class ConversationsController(AppDbContext db, TimeProvider time, IOptions<CloudinaryOptions> cloudinary) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ConversationDto>>> List(CancellationToken cancellationToken)
@@ -55,6 +57,7 @@ public class ConversationsController(AppDbContext db, TimeProvider time) : Contr
     {
         var buyer = await db.Users.FindAsync([User.UserId()], cancellationToken);
         if (buyer is null) return Unauthorized();
+        if (InvalidContent(request.Message, request.ImageUrl, "message") is { } invalid) return invalid;
 
         var product = await db.Products.AsNoTracking().SingleOrDefaultAsync(candidate => candidate.Id == request.ProductId && candidate.Status != ListingStatus.Inactive, cancellationToken);
         if (product is null) return NotFound();
@@ -69,7 +72,7 @@ public class ConversationsController(AppDbContext db, TimeProvider time) : Contr
             db.Conversations.Add(conversation);
         }
 
-        db.Messages.Add(NewMessage(conversation.Id, buyer, request.Message));
+        db.Messages.Add(NewMessage(conversation.Id, buyer, request.Message, request.ImageUrl));
         await db.SaveChangesAsync(cancellationToken);
 
         var detail = await Detail(conversation.Id, buyer.Id, cancellationToken);
@@ -82,18 +85,34 @@ public class ConversationsController(AppDbContext db, TimeProvider time) : Contr
         var sender = await db.Users.FindAsync([User.UserId()], cancellationToken);
         if (sender is null) return Unauthorized();
         if (!await IsParticipant(id, sender.Id, cancellationToken)) return NotFound();
+        if (InvalidContent(request.Body, request.ImageUrl, "body") is { } invalid) return invalid;
 
-        var message = NewMessage(id, sender, request.Body);
+        var message = NewMessage(id, sender, request.Body, request.ImageUrl);
         db.Messages.Add(message);
         await db.SaveChangesAsync(cancellationToken);
-        return StatusCode(StatusCodes.Status201Created, new MessageDto(message.Id, message.SenderName, message.Body, message.SentAt, IsMine: true));
+        return StatusCode(StatusCodes.Status201Created, new MessageDto(message.Id, message.SenderName, message.Body, message.ImageUrl, message.SentAt, IsMine: true));
     }
 
-    private Message NewMessage(string conversationId, User sender, string body)
+    private Message NewMessage(string conversationId, User sender, string? body, string? imageUrl)
     {
         // ReadAt records when the *recipient* read it, so a new message starts unread.
         // The sender's own messages never count as unread for them (see Summaries).
-        return new Message { ConversationId = conversationId, SenderId = sender.Id, SenderName = sender.Name, Body = body.Trim(), SentAt = time.GetUtcNow().UtcDateTime };
+        return new Message
+        {
+            ConversationId = conversationId, SenderId = sender.Id, SenderName = sender.Name,
+            Body = body?.Trim() ?? "", ImageUrl = string.IsNullOrWhiteSpace(imageUrl) ? null : imageUrl.Trim(),
+            SentAt = time.GetUtcNow().UtcDateTime,
+        };
+    }
+
+    // A message needs text, a photo, or both; photos must be ones uploaded through the app.
+    private ActionResult? InvalidContent(string? body, string? imageUrl, string bodyField)
+    {
+        if (string.IsNullOrWhiteSpace(body) && string.IsNullOrWhiteSpace(imageUrl))
+            return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]> { [bodyField] = ["Write a message or add a photo."] }));
+        if (!string.IsNullOrWhiteSpace(imageUrl) && !ImageUrls.IsAllowed(imageUrl.Trim(), cloudinary.Value))
+            return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]> { ["imageUrl"] = ["Send photos with the photo button; outside image links are not allowed."] }));
+        return null;
     }
 
     private Task<bool> IsParticipant(string conversationId, string userId, CancellationToken cancellationToken) =>
@@ -115,7 +134,7 @@ public class ConversationsController(AppDbContext db, TimeProvider time) : Contr
                 SellerAvatar = conversation.Product.SellerAvatar,
                 BuyerName = conversation.Buyer!.Name,
                 BuyerAvatar = conversation.Buyer.Avatar,
-                Last = conversation.Messages.OrderByDescending(message => message.SentAt).Select(message => new { message.Body, message.SentAt }).FirstOrDefault(),
+                Last = conversation.Messages.OrderByDescending(message => message.SentAt).Select(message => new { message.Body, message.ImageUrl, message.SentAt }).FirstOrDefault(),
                 Unread = conversation.Messages.Count(message => message.SenderId != userId && message.ReadAt == null),
                 conversation.CreatedAt,
             })
@@ -123,7 +142,8 @@ public class ConversationsController(AppDbContext db, TimeProvider time) : Contr
                 row.Id, row.ProductId, row.Title, row.Image,
                 row.IsBuyer ? row.SellerName : row.BuyerName,
                 row.IsBuyer ? row.SellerAvatar : row.BuyerAvatar,
-                row.Last == null ? "" : row.Last.Body,
+                // Photo-only messages show as "Photo" in the inbox preview.
+                row.Last == null ? "" : row.Last.Body != "" ? row.Last.Body : row.Last.ImageUrl != null ? "Photo" : "",
                 row.Last == null ? row.CreatedAt : row.Last.SentAt,
                 row.Unread));
 
@@ -133,7 +153,7 @@ public class ConversationsController(AppDbContext db, TimeProvider time) : Contr
         var messages = await db.Messages.AsNoTracking()
             .Where(message => message.ConversationId == id)
             .OrderBy(message => message.SentAt).ThenBy(message => message.Id)
-            .Select(message => new MessageDto(message.Id, message.SenderName, message.Body, message.SentAt, message.SenderId == userId))
+            .Select(message => new MessageDto(message.Id, message.SenderName, message.Body, message.ImageUrl, message.SentAt, message.SenderId == userId))
             .ToListAsync(cancellationToken);
         return new ConversationDetailDto(summary, messages);
     }
