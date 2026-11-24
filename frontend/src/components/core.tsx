@@ -53,8 +53,9 @@ export function ConditionBadge({ condition }: { condition: ProductCondition }) {
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const success = ["Active", "Completed", "Sold"].includes(status);
-  const warning = ["Reserved", "Meetup scheduled"].includes(status);
+  const success = ["Active", "Completed", "Sold", "Payment confirmed", "Delivered"].includes(status);
+  // Orders still in progress, waiting on someone.
+  const warning = ["Reserved", "Meetup scheduled", "Negotiating", "Deal agreed", "Payment pending", "Payment verification pending", "Shipped", "Ready for pickup"].includes(status);
   return <View style={[styles.status, success && styles.statusSuccess, warning && styles.statusWarning]}><Text style={[styles.statusText, success && styles.statusTextSuccess, warning && styles.statusTextWarning]}>{status}</Text></View>;
 }
 
