@@ -39,7 +39,7 @@ export function ExploreScreen({ navigation, route }: { navigation: any; route: a
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.cream, paddingTop: spacing.xl },
+  screen: { flex: 1, backgroundColor: colors.cream, paddingTop: spacing.xs },
   header: { paddingHorizontal: spacing.md },
   title: { ...typography.heading, color: colors.charcoal },
   subtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 2, marginBottom: spacing.md },
