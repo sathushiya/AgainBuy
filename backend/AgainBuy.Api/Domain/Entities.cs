@@ -19,6 +19,9 @@ public class User
 
     // Pickup spots the user reuses when listing items; the first is the default.
     public List<string> SavedLocations { get; set; } = [];
+
+    // Bank transfer details buyers see once a deal is agreed (sellers only need these).
+    public string BankDetails { get; set; } = "";
 }
 
 public class Category

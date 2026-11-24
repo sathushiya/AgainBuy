@@ -18,6 +18,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ModerationCase> ModerationCases => Set<ModerationCase>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
     public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderEvent> OrderEvents => Set<OrderEvent>();
+    public DbSet<OrderFile> OrderFiles => Set<OrderFile>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder builder)
     {
@@ -82,6 +86,39 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasIndex(transaction => transaction.UserId);
             entity.HasIndex(transaction => transaction.OrderId);
         });
+
+        model.Entity<Order>(entity =>
+        {
+            entity.HasOne(order => order.Product).WithMany().HasForeignKey(order => order.ProductId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(order => order.Buyer).WithMany().HasForeignKey(order => order.BuyerId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(order => order.Seller).WithMany().HasForeignKey(order => order.SellerId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(order => order.History).WithOne().HasForeignKey(change => change.OrderId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(order => order.BuyerId);
+            entity.HasIndex(order => order.SellerId);
+            // At most one live order per product, ever: a product can't be reserved
+            // twice or sold through more than one order. Cancelled ones don't count.
+            entity.HasIndex(order => order.ProductId).IsUnique().HasFilter("\"Status\" <> 'Cancelled'");
+            entity.Property(order => order.Version).IsRowVersion();
+            entity.Property(order => order.PaymentInstructions).HasMaxLength(500);
+            entity.Property(order => order.PaymentReference).HasMaxLength(120);
+            entity.Property(order => order.TrackingNumber).HasMaxLength(80);
+            entity.Property(order => order.DeliveryNotes).HasMaxLength(500);
+        });
+
+        model.Entity<OrderFile>(entity =>
+        {
+            entity.HasOne<Order>().WithMany().HasForeignKey(file => file.OrderId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(file => new { file.OrderId, file.Kind }).IsUnique();
+        });
+
+        model.Entity<Notification>(entity =>
+        {
+            entity.HasOne<User>().WithMany().HasForeignKey(notification => notification.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Order>().WithMany().HasForeignKey(notification => notification.OrderId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(notification => new { notification.UserId, notification.ReadAt });
+        });
+
+        model.Entity<User>().Property(user => user.BankDetails).HasMaxLength(500);
 
         model.Entity<SupportTicket>(entity =>
         {
