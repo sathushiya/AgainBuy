@@ -1,4 +1,5 @@
-import { FlatList, Image, ImageStyle, Pressable, StyleProp, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { FlatList, Image, ImageStyle, Modal, Pressable, StyleProp, StyleSheet, Text, View } from "react-native";
 import { colors, radius, shadows, spacing, typography } from "../theme";
 import { Conversation, Product, Transaction } from "../types";
 import { ConditionBadge, PriceLabel, StatusBadge } from "./core";
@@ -27,8 +28,10 @@ export function ConversationCard({ conversation, onPress }: { conversation: Conv
   return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.conversation, pressed && styles.pressed]}><Image source={{ uri: conversation.avatar }} style={styles.avatar}/><View style={styles.conversationCopy}><View style={styles.row}><Text style={styles.conversationName}>{conversation.person}</Text><Text style={styles.time}>{messageTime(conversation.time)}</Text></View><Text numberOfLines={1} style={styles.productName}>{conversation.productTitle}</Text><Text numberOfLines={1} style={styles.message}>{conversation.lastMessage}</Text></View>{conversation.unread > 0 && <View style={styles.unread}><Text style={styles.unreadText}>{conversation.unread}</Text></View>}</Pressable>;
 }
 
-export function MessageBubble({ text, mine, time }: { text: string; mine?: boolean; time: string }) {
-  return <View style={[styles.bubbleWrap, mine && styles.bubbleWrapMine]}><View style={[styles.bubble, mine && styles.bubbleMine]}><Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>{text}</Text></View><Text style={styles.bubbleTime}>{time}</Text></View>;
+/** A chat message: text, a photo (tap to view full screen), or a photo with a caption. */
+export function MessageBubble({ text, image, mine, time }: { text: string; image?: string | null; mine?: boolean; time: string }) {
+  const [viewing, setViewing] = useState(false);
+  return <View style={[styles.bubbleWrap, mine && styles.bubbleWrapMine]}><View style={[styles.bubble, mine && styles.bubbleMine, !!image && styles.bubblePhoto]}>{image && <Pressable accessibilityRole="imagebutton" accessibilityLabel="Open photo" onPress={() => setViewing(true)}><Image source={{ uri: image }} style={styles.messagePhoto}/></Pressable>}{!!text && <Text style={[styles.bubbleText, mine && styles.bubbleTextMine, !!image && styles.photoCaption]}>{text}</Text>}</View><Text style={styles.bubbleTime}>{time}</Text>{image && <Modal visible={viewing} transparent animationType="fade" onRequestClose={() => setViewing(false)}><Pressable accessibilityRole="button" accessibilityLabel="Close photo" onPress={() => setViewing(false)} style={styles.photoViewer}><Image source={{ uri: image }} style={styles.photoFull} resizeMode="contain"/></Pressable></Modal>}</View>;
 }
 
 export function TransactionCard({ transaction, onPress, children }: React.PropsWithChildren<{ transaction: Transaction; onPress?: () => void }>) {
@@ -67,6 +70,11 @@ const styles = StyleSheet.create({
   bubbleText: { ...typography.body, color: colors.charcoal },
   bubbleTextMine: { color: colors.white },
   bubbleTime: { ...typography.label, fontSize: 9, color: colors.textSecondary, marginTop: 3 },
+  bubblePhoto: { padding: 4 },
+  messagePhoto: { width: 220, height: 220, borderRadius: radius.md, backgroundColor: colors.creamSecondary },
+  photoCaption: { paddingHorizontal: spacing.xs, paddingTop: spacing.xs, paddingBottom: 2, maxWidth: 220 },
+  photoViewer: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", alignItems: "center", justifyContent: "center", padding: spacing.md },
+  photoFull: { width: "100%", height: "100%" },
   transaction: { flexDirection: "row", gap: spacing.sm, backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.sm, marginBottom: spacing.sm },
   transactionImage: { width: 86, height: 104, borderRadius: radius.md, backgroundColor: colors.creamSecondary },
   transactionCopy: { flex: 1, justifyContent: "center", gap: 3 },

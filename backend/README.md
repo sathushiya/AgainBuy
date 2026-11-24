@@ -102,8 +102,8 @@ All routes are under `/api`. A 🔒 means a bearer token is required; the policy
 | PUT / DELETE | `/wishlist/{productId}` | 🔒 `marketplace.browse` |
 | GET | `/conversations`, `/conversations/{id}` (marks as read) | 🔒 `marketplace.browse`, participants only |
 | GET | `/conversations/unread-count` → `{ count }` | 🔒 `marketplace.browse`; total unread messages, for badges |
-| POST | `/conversations` `{ productId, message }` | 🔒 `marketplace.browse` |
-| POST | `/conversations/{id}/messages` | 🔒 `marketplace.browse`, participants only |
+| POST | `/conversations` `{ productId, message?, imageUrl? }` (text, a photo, or both) | 🔒 `marketplace.browse` |
+| POST | `/conversations/{id}/messages` `{ body?, imageUrl? }` (text, a photo, or both) | 🔒 `marketplace.browse`, participants only |
 | GET | `/transactions?type=purchase\|sale`, `/transactions/{id}` | 🔒 `transaction.view_own` |
 | POST | `/transactions` `{ productId }` | 🔒 `transaction.view_own`; reserves the item |
 | POST | `/transactions/{id}/complete`, `/transactions/{id}/cancel` | 🔒 `transaction.view_own` |

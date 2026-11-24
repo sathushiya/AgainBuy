@@ -62,15 +62,16 @@ public record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, int
 
 public record ConversationDto(string Id, string ProductId, string ProductTitle, string ProductImage, string Person, string Avatar, string LastMessage, DateTime Time, int Unread);
 
-public record MessageDto(int Id, string SenderName, string Body, DateTime SentAt, bool IsMine);
+public record MessageDto(int Id, string SenderName, string Body, string? ImageUrl, DateTime SentAt, bool IsMine);
 
 public record UnreadCountDto(int Count);
 
 public record ConversationDetailDto(ConversationDto Conversation, IReadOnlyList<MessageDto> Messages);
 
-public record StartConversationRequest([Required] string ProductId, [Required, MinLength(1), MaxLength(2000)] string Message);
+// A message needs text, a photo, or both (checked in ConversationsController).
+public record StartConversationRequest([Required] string ProductId, [MaxLength(2000)] string? Message, [MaxLength(2048)] string? ImageUrl);
 
-public record SendMessageRequest([Required, MinLength(1), MaxLength(2000)] string Body);
+public record SendMessageRequest([MaxLength(2000)] string? Body, [MaxLength(2048)] string? ImageUrl);
 
 public record TransactionDto(string Id, string ProductId, string ProductTitle, string ProductImage, TransactionType Type, string Party, decimal Amount, DateTime Date, TransactionStatus Status);
 
