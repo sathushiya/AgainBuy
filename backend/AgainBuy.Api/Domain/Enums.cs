@@ -63,6 +63,14 @@ public enum ModerationStatus
     Removed,
 }
 
+// JSON names match the chips on the Sell screen.
+public enum DeliveryOption
+{
+    Delivery,
+    [JsonStringEnumMemberName("Meet-up")] MeetUp,
+    Both,
+}
+
 public enum SupportTicketType
 {
     [JsonStringEnumMemberName("problem")] Problem,

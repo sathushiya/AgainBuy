@@ -1,3 +1,5 @@
+import type { DeliveryOption } from "../types";
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** "Just now", "12 min ago", "3 hr ago", "Yesterday", "4 days ago", then "12 Jun 2025". */
@@ -31,4 +33,9 @@ export function messageTime(iso: string, now = new Date()) {
   if (date.toDateString() !== now.toDateString()) return timeAgo(iso, now.getTime());
   const hours = date.getHours();
   return `${hours % 12 || 12}:${String(date.getMinutes()).padStart(2, "0")} ${hours < 12 ? "AM" : "PM"}`;
+}
+
+/** Buyer-facing wording for a listing's delivery option. */
+export function deliveryLabel(delivery: DeliveryOption) {
+  return delivery === "Delivery" ? "Delivery available" : delivery === "Meet-up" ? "Meet-up only" : "Delivery or meet-up";
 }

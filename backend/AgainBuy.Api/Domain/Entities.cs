@@ -55,6 +55,8 @@ public class Product
     public string Description { get; set; } = "";
     public string Defects { get; set; } = "";
     public string Accessories { get; set; } = "";
+    public string ReasonForSelling { get; set; } = "";
+    public DeliveryOption Delivery { get; set; } = DeliveryOption.MeetUp;
     public DateTime ListedAt { get; set; } = DateTime.UtcNow;
     public ListingStatus Status { get; set; } = ListingStatus.Active;
 
