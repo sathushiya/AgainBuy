@@ -68,7 +68,7 @@ Permissions are centralized in `src/config/permissions.ts`. The API enforces the
 
 ## Implemented flows
 
-- Branded splash and three-page onboarding
+- Branded splash and three-page onboarding; the first page animates a buyer and seller meeting, paying by bank transfer and handing over the item
 - Login, registration, and password recovery
 - Warm marketplace home with categories and product discovery
 - Search and filtering by category and condition
