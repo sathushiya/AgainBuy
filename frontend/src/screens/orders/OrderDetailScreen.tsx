@@ -1,11 +1,12 @@
 import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { AppIcon } from "../../components/AppIcon";
 import { AppTextInput, ConfirmDialog, EmptyState, ErrorMessage, LoadingIndicator, PrimaryButton, ScreenContainer, SecondaryButton, StatusBadge } from "../../components/core";
 import { ProductImage } from "../../components/marketplace";
 import { OrderTimeline } from "../../components/orders";
 import { useApiData } from "../../hooks/useApiData";
 import { api, errorMessage } from "../../services/api";
+import { photoFile, pickPhotos } from "../../services/photos";
 import { colors, radius, spacing, typography } from "../../theme";
 import { OrderAction, OrderDetail, OrderParty } from "../../types";
 import { formatDate, messageTime } from "../../utils/format";
@@ -64,6 +65,7 @@ export function OrderDetailScreen({ navigation, route }: { navigation: any; rout
     <Section title="Progress"><OrderTimeline order={order}/></Section>
 
     {summary.status === "Negotiating" && <NegotiationSection order={order} busy={busy} onPropose={(price) => run("price", () => api.proposePrice(order.summary.id, price))} onAgree={() => run("agree", () => api.agreeDeal(order.summary.id))}/>}
+    {PAYMENT_STAGES.includes(summary.status) && <PaymentSection order={order} busy={busy} run={run}/>}
 
     {actionError && <ErrorMessage message={actionError}/>}
     {can("cancel") && <SecondaryButton title="Remove reservation" destructive onPress={() => setConfirmCancel(true)} style={styles.cancel}/>}
@@ -97,6 +99,64 @@ function NegotiationSection({ order, busy, onPropose, onAgree }: { order: OrderD
       <SecondaryButton title={busy === "price" ? "Saving…" : "Propose"} onPress={() => { if (validPrice && busy === null) { onPropose(price); setDraft(""); } }} style={styles.proposeButton}/>
     </View>}
     <Text style={styles.meta}>Changing the price resets both agreements.</Text>
+  </Section>;
+}
+
+const PAYMENT_STAGES = ["Payment pending", "Payment verification pending", "Payment confirmed", "Shipped", "Ready for pickup", "Delivered", "Completed"];
+
+/**
+ * Bank transfer: the buyer pays outside the app and uploads the receipt; the
+ * seller checks their own account before confirming. Uploading never confirms.
+ */
+function PaymentSection({ order, busy, run }: { order: OrderDetail; busy: string | null; run: (key: string, action: () => Promise<OrderDetail>) => Promise<void> }) {
+  const [reference, setReference] = React.useState(order.paymentReference);
+  const [rejecting, setRejecting] = React.useState(false);
+  const [reason, setReason] = React.useState("");
+  const [confirmPaid, setConfirmPaid] = React.useState(false);
+  const [viewError, setViewError] = React.useState<string | null>(null);
+  const { summary } = order;
+  const id = summary.id;
+  const amount = `LKR ${summary.agreedPrice.toLocaleString()}`;
+
+  const uploadReceipt = () => run("receipt", async () => {
+    const [asset] = await pickPhotos(1);
+    if (!asset) return order;
+    return api.uploadPaymentReceipt(id, await photoFile(asset, "payment-receipt"), reference.trim());
+  });
+  const viewReceipt = async () => {
+    setViewError(null);
+    try {
+      await Linking.openURL(await api.orderFileUrl(id, "payment-receipt"));
+    } catch (caught) {
+      setViewError(errorMessage(caught));
+    }
+  };
+
+  return <Section title="Payment">
+    {order.paymentConfirmedAt
+      ? <View style={styles.confirmed}><AppIcon name="checkmark-circle" size={20} color={colors.green}/><Text style={styles.confirmedText}>Payment of {amount} confirmed by the seller on {formatDate(order.paymentConfirmedAt)}.</Text></View>
+      : <Text style={styles.body}>{summary.isBuyer ? `Pay ${amount} by bank transfer to the seller, then upload your receipt. AgainBuy doesn't take payments.` : `The buyer pays ${amount} by bank transfer to your account and uploads the receipt.`}</Text>}
+
+    {order.paymentInstructions !== "" && !order.paymentConfirmedAt && <View style={styles.bank}><Text style={styles.bankLabel}>{summary.isBuyer ? "Seller's bank details" : "Your bank details, shown to the buyer"}</Text><Text selectable style={styles.bankText}>{order.paymentInstructions}</Text></View>}
+
+    {order.paymentSubmittedAt && !order.paymentConfirmedAt && <Text style={styles.meta}>Receipt sent {formatDate(order.paymentSubmittedAt)} at {messageTime(order.paymentSubmittedAt)}{order.paymentReference ? ` · reference ${order.paymentReference}` : ""}</Text>}
+    {order.hasPaymentReceipt && <SecondaryButton title="View payment receipt" icon={<AppIcon name="receipt-outline" size={18} color={colors.charcoal}/>} onPress={viewReceipt} style={styles.chat}/>}
+    {viewError && <ErrorMessage message={viewError}/>}
+
+    {order.actions.includes("uploadReceipt") && <>
+      <AppTextInput label="Transfer reference (optional)" value={reference} onChangeText={setReference} placeholder="e.g. the reference from your bank app"/>
+      <PrimaryButton title={order.hasPaymentReceipt ? "Replace payment receipt" : "Upload payment receipt"} loading={busy === "receipt"} onPress={uploadReceipt}/>
+      <Text style={styles.meta}>Upload a photo or screenshot of your bank transfer receipt. The seller confirms payment after checking their account.</Text>
+    </>}
+
+    {order.actions.includes("confirmPayment") && <>
+      <PrimaryButton title="Confirm payment" loading={busy === "confirmPayment"} onPress={() => setConfirmPaid(true)}/>
+      {rejecting
+        ? <View style={styles.rejectBox}><AppTextInput label="What's wrong?" value={reason} onChangeText={setReason} placeholder="e.g. No transfer received yet"/><View style={styles.rejectActions}><SecondaryButton title="Back" onPress={() => setRejecting(false)} style={styles.flex}/><PrimaryButton title="Send to buyer" disabled={reason.trim().length < 3} loading={busy === "rejectPayment"} onPress={() => { setRejecting(false); void run("rejectPayment", () => api.rejectPayment(id, reason.trim())); }} style={styles.flex}/></View></View>
+        : <SecondaryButton title="Payment not received" destructive onPress={() => setRejecting(true)}/>}
+    </>}
+
+    <ConfirmDialog visible={confirmPaid} title="Has the money reached your account?" message={`Only confirm once you've checked your bank and ${amount} has arrived. The buyer is told their payment is confirmed, and you'll then arrange the handover.`} confirmLabel="Yes, confirm payment" onCancel={() => setConfirmPaid(false)} onConfirm={() => { setConfirmPaid(false); void run("confirmPayment", () => api.confirmPayment(id)); }}/>
   </Section>;
 }
 
@@ -143,4 +203,11 @@ const styles = StyleSheet.create({
   historyRow: { borderLeftWidth: 2, borderLeftColor: colors.border, paddingLeft: spacing.sm, paddingVertical: 4 },
   historyStatus: { ...typography.caption, color: colors.charcoal, fontWeight: "700" },
   historyNote: { ...typography.caption, color: colors.textSecondary },
+  bank: { backgroundColor: colors.creamSecondary, borderRadius: radius.md, padding: spacing.md, gap: 4 },
+  bankLabel: { ...typography.label, color: colors.textSecondary },
+  bankText: { ...typography.medium, color: colors.charcoal },
+  confirmed: { flexDirection: "row", gap: spacing.xs, alignItems: "center" },
+  confirmedText: { ...typography.caption, color: colors.green, fontWeight: "700", flex: 1 },
+  rejectBox: { gap: spacing.sm },
+  rejectActions: { flexDirection: "row", gap: spacing.sm },
 });
