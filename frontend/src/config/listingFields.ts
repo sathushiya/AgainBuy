@@ -48,6 +48,30 @@ const brand: ListingField = { key: "brand", label: "Brand", type: "text", requir
 const model: ListingField = { key: "model", label: "Model", type: "text", required: true, common: "model" };
 
 export const CATEGORY_FIELDS: Readonly<Record<string, CategoryFields>> = {
+  Phones: {
+    fields: [
+      brand,
+      model,
+      { key: "storage", label: "Storage capacity", type: "select", required: true, options: ["16 GB", "32 GB", "64 GB", "128 GB", "256 GB", "512 GB", "1 TB"] },
+      { key: "ram", label: "RAM", type: "select", options: ["2 GB", "3 GB", "4 GB", "6 GB", "8 GB", "12 GB", "16 GB"] },
+      { key: "phoneType", label: "Phone type", type: "select", required: true, options: ["Smartphone", "Foldable", "Feature phone"] },
+      { key: "batteryHealth", label: "Battery health", type: "number", unit: "%", min: 1, max: 100, placeholder: "e.g. 88" },
+    ],
+  },
+  Laptops: {
+    fields: [
+      brand,
+      model,
+      { key: "processor", label: "Processor", type: "text", required: true, minLength: 2, placeholder: "e.g. Intel Core i5-1135G7 or Apple M1" },
+      { key: "ram", label: "RAM", type: "select", required: true, options: ["4 GB", "8 GB", "16 GB", "32 GB", "64 GB"] },
+      { key: "storageType", label: "Storage type", type: "select", required: true, options: ["SSD", "HDD", "SSD + HDD", "eMMC"] },
+      { key: "storage", label: "Storage capacity", type: "select", required: true, options: ["128 GB", "256 GB", "512 GB", "1 TB", "2 TB"] },
+      { key: "graphics", label: "Graphics card", type: "text", required: true, placeholder: "e.g. Integrated or NVIDIA RTX 3050" },
+      { key: "screenSize", label: "Screen size", type: "select", required: true, options: ["11\"", "13\"", "14\"", "15.6\"", "16\"", "17\""] },
+      { key: "os", label: "Operating system", type: "select", required: true, options: ["Windows", "macOS", "Linux", "ChromeOS", "None"] },
+      { key: "batteryCondition", label: "Battery condition", type: "select", required: true, options: ["Excellent", "Good", "Fair", "Needs replacement"] },
+    ],
+  },
 };
 
 export function hasCategoryFields(category: string) {
