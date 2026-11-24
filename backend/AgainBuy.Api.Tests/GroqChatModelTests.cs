@@ -80,4 +80,58 @@ public class GroqChatModelTests
         await Assert.ThrowsAsync<ChatModelUnavailableException>(() => Model(new StubHandler(HttpStatusCode.Unauthorized, """{"error":"bad key"}""")).Complete([new ChatTurn("user", "Hi")], [], CancellationToken.None));
         await Assert.ThrowsAsync<ChatModelUnavailableException>(() => Model(new StubHandler(HttpStatusCode.OK, """{"choices":[{"message":{"content":""}}]}""")).Complete([new ChatTurn("user", "Hi")], [], CancellationToken.None));
     }
+    private sealed class SequenceHandler(params HttpResponseMessage[] responses) : HttpMessageHandler
+    {
+        private readonly Queue<HttpResponseMessage> _responses = new(responses);
+        public int Calls { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Calls++;
+            return Task.FromResult(_responses.Dequeue());
+        }
+    }
+
+    private static HttpResponseMessage RateLimited(int seconds)
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests) { Content = new StringContent("""{"error":{"message":"Rate limit reached on tokens per minute"}}""") };
+        response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(seconds));
+        return response;
+    }
+
+    [Fact]
+    public async Task Waits_once_for_a_short_per_minute_limit_then_retries()
+    {
+        var handler = new SequenceHandler(RateLimited(0), new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{"choices":[{"message":{"content":"Hi"}}]}""") });
+
+        var result = await new GroqChatModel(new HttpClient(handler), Options.Create(new GroqOptions { ApiKey = "test-key" }), NullLogger<GroqChatModel>.Instance)
+            .Complete([new ChatTurn("user", "Hi")], [], CancellationToken.None);
+
+        Assert.Equal("Hi", result.Content);
+        Assert.Equal(2, handler.Calls);
+    }
+
+    [Fact]
+    public async Task Reports_busy_when_the_wait_is_long_or_the_retry_is_limited_too()
+    {
+        var model = (HttpMessageHandler handler) => new GroqChatModel(new HttpClient(handler), Options.Create(new GroqOptions { ApiKey = "test-key" }), NullLogger<GroqChatModel>.Instance);
+
+        var longWait = new SequenceHandler(RateLimited(60));
+        await Assert.ThrowsAsync<ChatModelBusyException>(() => model(longWait).Complete([new ChatTurn("user", "Hi")], [], CancellationToken.None));
+        Assert.Equal(1, longWait.Calls);
+
+        var twice = new SequenceHandler(RateLimited(0), RateLimited(0));
+        await Assert.ThrowsAsync<ChatModelBusyException>(() => model(twice).Complete([new ChatTurn("user", "Hi")], [], CancellationToken.None));
+        Assert.Equal(2, twice.Calls);
+    }
+
+    [Fact]
+    public void Asks_gpt_oss_for_low_reasoning_effort_only()
+    {
+        var gptOss = new GroqChatModel(new HttpClient(), Options.Create(new GroqOptions { ApiKey = "k" }), NullLogger<GroqChatModel>.Instance);
+        var llama = new GroqChatModel(new HttpClient(), Options.Create(new GroqOptions { ApiKey = "k", Model = "llama-3.1-8b-instant" }), NullLogger<GroqChatModel>.Instance);
+
+        Assert.Equal("low", JsonSerializer.SerializeToNode(gptOss.Body([new ChatTurn("user", "Hi")], []))!["reasoning_effort"]!.GetValue<string>());
+        Assert.Null(JsonSerializer.SerializeToNode(llama.Body([new ChatTurn("user", "Hi")], []))!["reasoning_effort"]);
+    }
 }

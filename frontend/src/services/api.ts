@@ -163,7 +163,7 @@ export const api = {
   markAllNotificationsRead: () => request<void>("POST", "/api/notifications/read-all"),
 
   /** Asks the shopping assistant; pass the whole chat so far, ending with the new question. */
-  askAssistant: (messages: AssistantTurn[], productId?: string) => request<{ reply: string }>("POST", "/api/assistant/chat", { body: { messages, productId } }),
+  askAssistant: (messages: AssistantTurn[], productId?: string) => request<{ reply: string; products: Product[] }>("POST", "/api/assistant/chat", { body: { messages, productId } }),
 
   // Administration
   adminStats: () => request<AdminStats>("GET", "/api/admin/stats"),

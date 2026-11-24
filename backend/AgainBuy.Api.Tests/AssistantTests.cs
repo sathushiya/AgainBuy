@@ -76,7 +76,20 @@ public class AssistantTests
         Assert.Equal("call_1", answerPrompt[^1].ToolCallId);
         Assert.Contains("iPhone 13", answerPrompt[^1].Content);
         Assert.Contains("138000", answerPrompt[^1].Content);
-        Assert.Contains("seller", answerPrompt[^1].Content);
+        Assert.Contains("\"reservable\":false", answerPrompt[^1].Content);
+    }
+
+    [Fact]
+    public async Task Shows_cards_only_for_listings_the_answer_mentions()
+    {
+        await using var factory = new ApiFactory();
+        var client = await factory.Customer();
+        factory.Chat.SearchThenAnswer("""{"maxPrice":50000,"limit":8}""", "The Solid Teak Lounge Chair is the only chair for sale.");
+
+        var reply = await Chat(client, Ask("Do you have a chair?"));
+
+        Assert.Equal(["p3"], reply.Products.Select(product => product.Id));
+        Assert.Contains("Sony", factory.Chat.Prompts[1][^1].Content);
     }
 
     [Fact]
@@ -104,14 +117,14 @@ public class AssistantTests
             await db.SaveChangesAsync();
         }
         var client = await factory.Customer();
-        factory.Chat.SearchThenAnswer("""{"query":"sony"}""");
+        factory.Chat.SearchThenAnswer("""{"query":"sony"}""", "Your Sony Wireless Headphones are listed.");
         factory.Chat.SearchThenAnswer("""{"query":"macbook"}""");
 
         var sony = await Chat(client, Ask("Any Sony headphones?"));
         var macbook = await Chat(client, Ask("Any MacBooks?"));
 
         Assert.Equal(["mine_1"], sony.Products.Select(product => product.Id));
-        Assert.Contains("\"isYourListing\":true", factory.Chat.Prompts[1][^1].Content);
+        Assert.Contains("\"yours\":true", factory.Chat.Prompts[1][^1].Content);
         Assert.Empty(macbook.Products);
     }
 
@@ -120,7 +133,7 @@ public class AssistantTests
     {
         await using var factory = new ApiFactory();
         var client = await factory.Customer();
-        factory.Chat.SearchThenAnswer("""{"query":"cheap macbook laptop","sort":"price_asc","limit":"3"}""");
+        factory.Chat.SearchThenAnswer("""{"query":"cheap macbook laptop","sort":"price_asc","limit":"3"}""", "The MacBook Air M1 is the closest match.");
 
         var reply = await Chat(client, Ask("cheap macbook?"));
 
@@ -147,11 +160,11 @@ public class AssistantTests
         var client = await factory.Customer();
         for (var round = 0; round < 3; round++)
             factory.Chat.Script.Enqueue(new ChatResult("", [new ToolCall($"call_{round}", ListingSearch.ToolName, """{"category":"Books"}""")]));
-        factory.Chat.Script.Enqueue(ChatResult.Text("Here is the book set."));
+        factory.Chat.Script.Enqueue(ChatResult.Text("Here is the Architecture Book Set."));
 
         var reply = await Chat(client, Ask("Books?"));
 
-        Assert.Equal("Here is the book set.", reply.Reply);
+        Assert.Equal("Here is the Architecture Book Set.", reply.Reply);
         Assert.Equal([1, 1, 1, 0], factory.Chat.Tools.Select(tools => tools.Count));
         Assert.Equal("p6", Assert.Single(reply.Products).Id);
     }

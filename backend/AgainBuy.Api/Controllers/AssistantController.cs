@@ -53,7 +53,7 @@ public class AssistantController(AppDbContext db, IChatModel model, ListingSearc
         try
         {
             var tools = new[] { ListingSearch.Tool(categories) };
-            IReadOnlyList<Product> shown = [];
+            var found = new List<Product>();
             for (var round = 0; ; round++)
             {
                 // After the last allowed search, ask for an answer without tools.
@@ -61,7 +61,9 @@ public class AssistantController(AppDbContext db, IChatModel model, ListingSearc
                 if (result.ToolCalls.Count == 0)
                 {
                     if (result.Content.Length == 0) throw new ChatModelUnavailableException("The assistant didn't answer. Try asking another way.");
-                    return new AssistantReplyDto(result.Content, shown.Take(MaxCards).Select(product => product.ToDto(viewerId)).ToList());
+                    // Cards only for listings the answer actually talks about.
+                    var cards = found.DistinctBy(product => product.Id).Where(product => Mentions(result.Content, product)).Take(MaxCards);
+                    return new AssistantReplyDto(result.Content, cards.Select(product => product.ToDto(viewerId)).ToList());
                 }
 
                 prompt.Add(new ChatTurn("assistant", result.Content, ToolCalls: result.ToolCalls));
@@ -72,10 +74,9 @@ public class AssistantController(AppDbContext db, IChatModel model, ListingSearc
                         prompt.Add(new ChatTurn("tool", $$"""{"error":"Unknown tool {{call.Name}}. Only {{ListingSearch.ToolName}} exists."}""", call.Id));
                         continue;
                     }
-                    var found = await search.Run(call.Arguments, viewerId, cancellationToken);
-                    prompt.Add(new ChatTurn("tool", found.ToolText, call.Id));
-                    // Cards follow the latest search that found something.
-                    if (found.Products.Count > 0) shown = found.Products;
+                    var results = await search.Run(call.Arguments, viewerId, cancellationToken);
+                    prompt.Add(new ChatTurn("tool", results.ToolText, call.Id));
+                    found.AddRange(results.Products);
                 }
             }
         }
@@ -89,5 +90,12 @@ public class AssistantController(AppDbContext db, IChatModel model, ListingSearc
         {
             return Problem(statusCode: StatusCodes.Status502BadGateway, title: unavailable.Message);
         }
+    }
+
+    /// <summary>Whether the answer names the listing: its full title, or the part before " · " (e.g. "iPhone 13").</summary>
+    private static bool Mentions(string reply, Product product)
+    {
+        var shortTitle = product.Title.Split('·')[0].Trim();
+        return reply.Contains(product.Title, StringComparison.OrdinalIgnoreCase) || (shortTitle.Length >= 4 && reply.Contains(shortTitle, StringComparison.OrdinalIgnoreCase));
     }
 }

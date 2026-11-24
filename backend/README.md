@@ -56,6 +56,7 @@ It's applied automatically on the next start.
 | `Cloudinary:Folder` | Cloudinary folder for listing photos | `againbuy/listings` |
 | `Groq:ApiKey` | Groq API key for the shopping assistant. If missing, the API still runs but `/api/assistant/chat` answers 503. **Never commit it.** | empty |
 | `Groq:Model` | Groq model the assistant uses (see https://console.groq.com/docs/models) | `openai/gpt-oss-20b` |
+| `Groq:ReasoningEffort`, `Groq:MaxCompletionTokens`, `Groq:MaxRetryWait` | Reasoning effort for gpt-oss models, reply length cap, and the longest rate-limit wait before answering "busy" | `low`, `800`, `00:00:12` |
 
 Use environment variables in production, e.g. `Jwt__Key=...`, `ConnectionStrings__Default=...`, `Cloudinary__ApiSecret=...`, `Groq__ApiKey=...`.
 
@@ -83,7 +84,9 @@ How it works: the app shrinks each photo to 1600px JPEG and sends it to `POST /a
    ```
 3. Restart the API.
 
-How it works: the app keeps the chat and sends it (latest 10 turns, each up to 1,000 characters) to `POST /api/assistant/chat`, with the product ID when asked from a product page. The API adds the app guide (`Assistant/AssistantPrompt.cs`) and that listing's details, calls Groq, and returns the reply. Nothing is stored. When the app's features or rules change, update the guide too.
+How it works: the app keeps the chat and sends it (latest 10 turns, each up to 1,000 characters) to `POST /api/assistant/chat`, with the product ID when asked from a product page. The API adds the app guide (`Assistant/AssistantPrompt.cs`), the category list and that listing's details, and offers the model a `search_listings` tool (`Assistant/ListingSearch.cs`). When someone asks what is for sale, the model calls it (keywords, category, price range, condition, sort); the API searches **Active** listings in PostgreSQL, the same ones people can browse, and sends back a compact summary. The model may search up to three times, then answers. The reply includes the listings it mentions as `products`, which the app shows as cards. Nothing is stored.
+
+The free Groq plan allows about 8,000 tokens per minute for `openai/gpt-oss-20b`, and a product question uses roughly 3,000-5,000 (two model calls). When Groq asks to wait a few seconds, the API waits once (up to `Groq:MaxRetryWait`, 12 s) and retries; longer waits answer 503 "busy". For real traffic, upgrade the Groq plan. When the app's features or rules change, update the guide too.
 
 ## Endpoints
 
@@ -156,7 +159,7 @@ All routes are under `/api`. A 🔒 means a bearer token is required; the policy
 **Assistant**
 | Method | Route | Access |
 |---|---|---|
-| POST | `/assistant/chat` `{ messages: [{ role, content }], productId? }` | 🔒 any role; 503 if Groq isn't set up or is busy, 502 if it fails |
+| POST | `/assistant/chat` `{ messages: [{ role, content }], productId? }` → `{ reply, products }` | 🔒 any role; 503 if Groq isn't set up or is busy, 502 if it fails |
 
 **Administration** (admin)
 | Method | Route | Access |
@@ -184,7 +187,7 @@ Errors use RFC 7807 problem details; validation errors list messages per field, 
 - **Moderation removal is final for sellers.** A listing removed by a moderator can't be edited or reactivated by its owner.
 - **Listings carry category-specific details.** `specifications` is an ordered list of `{ key, label, value }` (up to 40, each value up to 200 characters), e.g. `{ "key": "storage", "label": "Storage capacity", "value": "256 GB" }`. Blank values and repeated keys are dropped. Which fields each category has, and which are required, is defined by the app (`frontend/src/config/listingFields.ts`); the API stores what it is sent. Listings also have `reasonForSelling` and `delivery` (`"Delivery"` or `"Meet-up"`, shown as Delivery Available / Pickup Only; default Meet-up) and, for delivery, `courier` (`"PickMe"` or `"Domex"`, required). `brand` and `model` are optional, because not every category has them (books have neither).
 - **Seeded sellers have no accounts.** The demo listings (`p1`–`p8`) belong to display-only sellers, so nobody can sign in to reply as them. Only the customer's own listing (`mine_1`) and new listings have a seller account behind them.
-- **The assistant only knows what it is told.** It answers from the app guide and the listing's details; it can't see orders or accounts. Seller-written listing text is fenced and marked as data in the prompt, so a description can't give the model instructions. Answers can still be wrong, which the app says on the chat screen.
+- **The assistant only knows what it is told.** It answers from the app guide, the listing being viewed and its own searches of active listings; it can't see orders or accounts. Seller-written listing text is fenced and marked as data in the prompt, so a description can't give the model instructions. Answers can still be wrong, which the app says on the chat screen.
 - **Forgot password only logs the request.** No email provider is configured yet.
 - **Unused photos aren't cleaned up.** A photo uploaded and then removed before publishing stays in Cloudinary (tagged `againbuy`). Deleting listings doesn't delete their photos either.
 
